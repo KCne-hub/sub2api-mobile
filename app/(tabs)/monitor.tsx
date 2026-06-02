@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+﻿import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
@@ -16,17 +16,17 @@ const { useSnapshot } = require('valtio/react');
 type RangeKey = '24h' | '7d' | '30d';
 
 const colors = {
-  page: '#f4efe4',
-  card: '#fbf8f2',
-  mutedCard: '#f1ece2',
-  primary: '#1d5f55',
-  text: '#16181a',
-  subtext: '#6f665c',
-  border: '#e7dfcf',
-  dangerBg: '#fbf1eb',
-  danger: '#c25d35',
-  successBg: '#e6f4ee',
-  success: '#1d5f55',
+  page: '#eef2ff',
+  card: '#ffffff',
+  mutedCard: '#eef2ff',
+  primary: '#7c3aed',
+  text: '#0f172a',
+  subtext: '#475569',
+  border: '#c7d2fe',
+  dangerBg: '#ffe4e6',
+  danger: '#be123c',
+  successBg: '#dcfce7',
+  success: '#16a34a',
 };
 
 const RANGE_OPTIONS: Array<{ key: RangeKey; label: string }> = [

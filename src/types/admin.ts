@@ -198,6 +198,34 @@ export type AdminAccount = {
   extra?: Record<string, string | number | boolean | null>;
 };
 
+export type ProxyQualityStatus = 'excellent' | 'good' | 'warn' | 'poor' | 'failed' | string;
+
+export type AdminProxy = {
+  id: number;
+  name: string;
+  protocol?: string;
+  host?: string;
+  port?: number;
+  username?: string | null;
+  status?: string;
+  account_count?: number;
+  latency_ms?: number | null;
+  latency_status?: string | null;
+  latency_message?: string | null;
+  ip_address?: string | null;
+  country?: string | null;
+  country_code?: string | null;
+  region?: string | null;
+  city?: string | null;
+  quality_status?: ProxyQualityStatus | null;
+  quality_score?: number | null;
+  quality_grade?: string | null;
+  quality_summary?: string | null;
+  quality_checked?: number | string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
 export type AccountType = 'apikey' | 'oauth' | 'setup-token' | 'upstream';
 
 export type CreateAccountRequest = {

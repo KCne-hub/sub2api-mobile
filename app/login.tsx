@@ -26,15 +26,17 @@ type FormValues = z.infer<typeof schema>;
 type ConnectionState = 'idle' | 'checking' | 'error';
 
 const colors = {
-  page: '#f4efe4',
-  card: '#fbf8f2',
-  mutedCard: '#f1ece2',
-  primary: '#1d5f55',
-  text: '#16181a',
-  subtext: '#6f665c',
-  border: '#e7dfcf',
-  dangerBg: '#fbf1eb',
-  danger: '#c25d35',
+  page: '#0f172a',
+  card: '#ffffff',
+  mutedCard: '#eef2ff',
+  primary: '#7c3aed',
+  text: '#0f172a',
+  subtext: '#c7d2fe',
+  border: '#c4b5fd',
+  dangerBg: '#ffe4e6',
+  danger: '#be123c',
+  cyan: '#22d3ee',
+  pink: '#ec4899',
 };
 
 function getConnectionErrorMessage(error: unknown) {
@@ -75,17 +77,31 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.page }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20, paddingVertical: 24 }} keyboardShouldPersistTaps="handled">
-        <View style={{ flex: 1, justifyContent: 'center', gap: 20 }}>
-          <View style={{ gap: 8 }}>
-            <Text style={{ fontSize: 34, fontWeight: '800', color: colors.text }}>管理员入口</Text>
+        <View style={{ flex: 1, justifyContent: 'center', gap: 18 }}>
+          <View style={{ gap: 14 }}>
+            <View style={{ alignSelf: 'flex-start', borderRadius: 999, backgroundColor: '#312e81', paddingHorizontal: 12, paddingVertical: 7 }}>
+              <Text style={{ color: colors.cyan, fontSize: 11, fontWeight: '800', letterSpacing: 1.4 }}>SUB2API MOBILE</Text>
+            </View>
+            <Text style={{ fontSize: 40, lineHeight: 44, fontWeight: '900', color: '#f8fafc' }}>Admin{'\n'}Cockpit</Text>
             <Text style={{ fontSize: 14, lineHeight: 22, color: colors.subtext }}>
-              首次进入请填写服务器地址和 Admin Key。连接成功后即可进入应用，并在“服务器”页管理多个服务器。
+              连接你的 Sub2API 管理端，查看流量、账号、用户和代理池状态。
             </Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <View style={{ height: 5, width: 60, borderRadius: 999, backgroundColor: colors.cyan }} />
+              <View style={{ height: 5, width: 34, borderRadius: 999, backgroundColor: colors.pink }} />
+              <View style={{ height: 5, width: 22, borderRadius: 999, backgroundColor: '#a3e635' }} />
+            </View>
           </View>
 
-          <View style={{ backgroundColor: colors.card, borderRadius: 22, padding: 18, gap: 16 }}>
+          <View style={{ backgroundColor: colors.card, borderRadius: 26, padding: 18, gap: 16 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={{ fontSize: 18, fontWeight: '900', color: colors.text }}>连接服务器</Text>
+              <View style={{ borderRadius: 999, backgroundColor: '#f0f9ff', paddingHorizontal: 10, paddingVertical: 6 }}>
+                <Text style={{ color: '#0369a1', fontSize: 11, fontWeight: '800' }}>SecureStore</Text>
+              </View>
+            </View>
             <View>
-              <Text style={{ marginBottom: 8, fontSize: 12, color: colors.subtext }}>服务器地址</Text>
+              <Text style={{ marginBottom: 8, fontSize: 12, fontWeight: '800', color: '#475569' }}>服务器地址</Text>
               <Controller
                 control={control}
                 name="baseUrl"
@@ -103,14 +119,14 @@ export default function LoginScreen() {
                     placeholderTextColor="#9b9081"
                     autoCapitalize="none"
                     autoCorrect={false}
-                    style={{ backgroundColor: colors.mutedCard, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: colors.text }}
+                    style={{ backgroundColor: colors.mutedCard, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 15, fontSize: 16, color: colors.text }}
                   />
                 )}
               />
             </View>
 
             <View>
-              <Text style={{ marginBottom: 8, fontSize: 12, color: colors.subtext }}>Admin Key</Text>
+              <Text style={{ marginBottom: 8, fontSize: 12, fontWeight: '800', color: '#475569' }}>Admin Key</Text>
               <Controller
                 control={control}
                 name="adminApiKey"
@@ -133,18 +149,18 @@ export default function LoginScreen() {
                       style={{
                         flex: 1,
                         backgroundColor: colors.mutedCard,
-                        borderRadius: 16,
+                        borderRadius: 18,
                         paddingHorizontal: 16,
-                        paddingVertical: 14,
+                        paddingVertical: 15,
                         fontSize: 16,
                         color: colors.text,
                       }}
                     />
                     <Pressable
                       onPress={() => setShowAdminKey((value) => !value)}
-                      style={{ backgroundColor: colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 }}
+                      style={{ backgroundColor: '#ede9fe', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 11 }}
                     >
-                      <Text style={{ fontSize: 12, fontWeight: '700', color: '#4e463e' }}>{showAdminKey ? '隐藏' : '显示'}</Text>
+                      <Text style={{ fontSize: 12, fontWeight: '800', color: '#6d28d9' }}>{showAdminKey ? '隐藏' : '显示'}</Text>
                     </Pressable>
                   </View>
                 )}
@@ -164,7 +180,7 @@ export default function LoginScreen() {
             ) : null}
 
             <Pressable
-              style={{ backgroundColor: connectionState === 'checking' ? '#7ca89f' : colors.primary, borderRadius: 18, paddingVertical: 15, alignItems: 'center' }}
+              style={{ backgroundColor: connectionState === 'checking' ? '#a78bfa' : colors.primary, borderRadius: 20, paddingVertical: 16, alignItems: 'center' }}
               disabled={connectionState === 'checking'}
               onPress={handleSubmit(async (values) => {
                 setConnectionState('checking');
@@ -182,7 +198,7 @@ export default function LoginScreen() {
                 }
               })}
             >
-              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>{connectionState === 'checking' ? '连接中...' : '进入应用'}</Text>
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '900' }}>{connectionState === 'checking' ? '连接中...' : '进入控制台'}</Text>
             </Pressable>
           </View>
         </View>

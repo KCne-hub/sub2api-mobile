@@ -4,6 +4,7 @@ import type {
   AdminAccount,
   AdminApiKey,
   AdminGroup,
+  AdminProxy,
   AdminSettings,
   AdminUser,
   BalanceOperation,
@@ -148,6 +149,12 @@ export function getGroup(groupId: number) {
 export function listAccounts(search = '') {
   return adminFetch<PaginatedData<AdminAccount>>(
     `/api/v1/admin/accounts${buildQuery({ page: 1, page_size: 20, search: search.trim() })}`
+  );
+}
+
+export function listProxies(search = '') {
+  return adminFetch<PaginatedData<AdminProxy>>(
+    `/api/v1/admin/proxies${buildQuery({ page: 1, page_size: 50, search: search.trim() })}`
   );
 }
 

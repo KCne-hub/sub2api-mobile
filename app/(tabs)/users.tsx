@@ -1,4 +1,4 @@
-import { useQueries, useQuery } from '@tanstack/react-query';
+﻿import { useQueries, useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
@@ -14,16 +14,16 @@ import type { AdminUser, UsageStats } from '@/src/types/admin';
 const { useSnapshot } = require('valtio/react');
 
 const colors = {
-  page: '#f4efe4',
-  card: '#fbf8f2',
-  mutedCard: '#f1ece2',
-  primary: '#1d5f55',
-  text: '#16181a',
-  subtext: '#6f665c',
-  dangerBg: '#fbf1eb',
-  danger: '#c25d35',
-  accentBg: '#efe4cf',
-  accentText: '#8c5a22',
+  page: '#eef2ff',
+  card: '#ffffff',
+  mutedCard: '#eef2ff',
+  primary: '#7c3aed',
+  text: '#0f172a',
+  subtext: '#475569',
+  dangerBg: '#ffe4e6',
+  danger: '#be123c',
+  accentBg: '#fef3c7',
+  accentText: '#b45309',
 };
 
 type SortOrder = 'desc' | 'asc';

@@ -1,5 +1,5 @@
 import { Redirect, Tabs } from 'expo-router';
-import { ChartNoAxesCombined, Settings2, Users } from 'lucide-react-native';
+import { ChartNoAxesCombined, Network, Settings2, Users } from 'lucide-react-native';
 
 import { adminConfigState, hasAuthenticatedAdminSession } from '@/src/store/admin-config';
 
@@ -18,14 +18,18 @@ export default function TabsLayout() {
       initialRouteName={hasAccount ? 'monitor' : 'settings'}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#1d5f55',
-        tabBarInactiveTintColor: '#8a8072',
+        tabBarActiveTintColor: '#67e8f9',
+        tabBarInactiveTintColor: '#94a3b8',
         tabBarStyle: {
-          backgroundColor: '#fbf8f2',
+          backgroundColor: '#0f172a',
           borderTopWidth: 0,
-          height: 84,
+          height: 88,
           paddingTop: 10,
           paddingBottom: 18,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '700',
         },
       }}
     >
@@ -47,6 +51,13 @@ export default function TabsLayout() {
         options={{
           title: '用户',
           tabBarIcon: ({ color, size }) => <Users color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="proxies"
+        options={{
+          title: '代理池',
+          tabBarIcon: ({ color, size }) => <Network color={color} size={size} />,
         }}
       />
       <Tabs.Screen
