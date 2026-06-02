@@ -24,6 +24,14 @@ export function formatTokenValue(value: number) {
   return formatCompactNumber(value, 1);
 }
 
+export function formatLocalDate(value: Date) {
+  const year = value.getFullYear();
+  const month = `${value.getMonth() + 1}`.padStart(2, '0');
+  const day = `${value.getDate()}`.padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
 export function formatDisplayTime(value?: string | null) {
   if (!value) {
     return '--';

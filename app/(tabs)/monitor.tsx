@@ -5,31 +5,37 @@ import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BarChartCard } from '@/src/components/bar-chart-card';
-import { formatTokenValue } from '@/src/lib/formatters';
+import { formatLocalDate, formatTokenValue } from '@/src/lib/formatters';
 import { DonutChartCard } from '@/src/components/donut-chart-card';
 import { LineTrendChart } from '@/src/components/line-trend-chart';
-import { getAdminSettings, getDashboardModels, getDashboardStats, getDashboardTrend, listAccounts } from '@/src/services/admin';
+import { getAdminSettings, getDashboardModels, getDashboardStats, getDashboardTrend, getUsageStats, listAccounts } from '@/src/services/admin';
 import { adminConfigState, hasAuthenticatedAdminSession } from '@/src/store/admin-config';
 import { chartColors, colors } from '@/src/theme/colors';
 
 const { useSnapshot } = require('valtio/react');
 
-type RangeKey = '24h' | '7d' | '30d';
+type RangeKey = '24h' | '7d' | '30d' | 'total';
 
 const RANGE_OPTIONS: Array<{ key: RangeKey; label: string }> = [
   { key: '24h', label: '24H' },
   { key: '7d', label: '7D' },
   { key: '30d', label: '30D' },
+  { key: 'total', label: '总' },
 ];
 
 const RANGE_TITLE_MAP: Record<RangeKey, string> = {
   '24h': '24H',
   '7d': '7D',
   '30d': '30D',
+  total: '总数据',
 };
 
-function hasAccountError(account: { status?: string; error_message?: string | null }) {
-  return Boolean(account.status === 'error' || account.error_message);
+function hasAccountError(account: { status?: string; credentials_status?: string | Record<string, unknown> | null }) {
+  const status = `${account.status ?? ''}`.toLowerCase();
+  const credentialsStatus = typeof account.credentials_status === 'string' ? account.credentials_status.toLowerCase() : '';
+  const errorStatuses = ['error', 'failed', 'invalid'];
+
+  return errorStatuses.includes(status) || errorStatuses.includes(credentialsStatus);
 }
 
 function hasAccountRateLimited(account: {
@@ -64,6 +70,10 @@ function getDateRange(rangeKey: RangeKey) {
   const end = new Date();
   const start = new Date();
 
+  if (rangeKey === 'total') {
+    return null;
+  }
+
   if (rangeKey === '24h') {
     start.setHours(end.getHours() - 23, 0, 0, 0);
   } else if (rangeKey === '30d') {
@@ -72,11 +82,9 @@ function getDateRange(rangeKey: RangeKey) {
     start.setDate(end.getDate() - 6);
   }
 
-  const toDate = (value: Date) => value.toISOString().slice(0, 10);
-
   return {
-    start_date: toDate(start),
-    end_date: toDate(end),
+    start_date: formatLocalDate(start),
+    end_date: formatLocalDate(end),
     granularity: rangeKey === '24h' ? ('hour' as const) : ('day' as const),
   };
 }
@@ -101,6 +109,16 @@ function formatCompactNumber(value?: number) {
 function formatTokenDisplay(value?: number) {
   if (typeof value !== 'number' || Number.isNaN(value)) return '--';
   return formatTokenValue(value);
+}
+
+function pickNumber(...values: Array<number | null | undefined>) {
+  for (const value of values) {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+  }
+
+  return undefined;
 }
 
 function formatDuration(value?: number) {
@@ -171,6 +189,7 @@ export default function MonitorScreen() {
   const hasAccount = hasAuthenticatedAdminSession(config);
   const [rangeKey, setRangeKey] = useState<RangeKey>('7d');
   const range = useMemo(() => getDateRange(rangeKey), [rangeKey]);
+  const hasRange = Boolean(range);
 
   const statsQuery = useQuery({
     queryKey: ['monitor-stats'],
@@ -190,17 +209,42 @@ export default function MonitorScreen() {
     enabled: hasAccount,
     staleTime: 60_000,
   });
+  const rangeUsageQuery = useQuery({
+    queryKey: ['monitor-usage-stats', rangeKey, range?.start_date, range?.end_date],
+    queryFn: () => {
+      if (!range) {
+        throw new Error('RANGE_REQUIRED');
+      }
+
+      return getUsageStats(range);
+    },
+    enabled: hasAccount && hasRange,
+    staleTime: 60_000,
+    placeholderData: (previousData) => previousData,
+  });
   const trendQuery = useQuery({
-    queryKey: ['monitor-trend', rangeKey, range.start_date, range.end_date, range.granularity],
-    queryFn: () => getDashboardTrend(range),
-    enabled: hasAccount,
+    queryKey: ['monitor-trend', rangeKey, range?.start_date, range?.end_date, range?.granularity],
+    queryFn: () => {
+      if (!range) {
+        throw new Error('RANGE_REQUIRED');
+      }
+
+      return getDashboardTrend(range);
+    },
+    enabled: hasAccount && hasRange,
     staleTime: 60_000,
     placeholderData: (previousData) => previousData,
   });
   const modelsQuery = useQuery({
-    queryKey: ['monitor-models', rangeKey, range.start_date, range.end_date],
-    queryFn: () => getDashboardModels(range),
-    enabled: hasAccount,
+    queryKey: ['monitor-models', rangeKey, range?.start_date, range?.end_date],
+    queryFn: () => {
+      if (!range) {
+        throw new Error('RANGE_REQUIRED');
+      }
+
+      return getDashboardModels(range);
+    },
+    enabled: hasAccount && hasRange,
     staleTime: 60_000,
     placeholderData: (previousData) => previousData,
   });
@@ -209,8 +253,11 @@ export default function MonitorScreen() {
     statsQuery.refetch();
     settingsQuery.refetch();
     accountsQuery.refetch();
-    trendQuery.refetch();
-    modelsQuery.refetch();
+    if (hasRange) {
+      rangeUsageQuery.refetch();
+      trendQuery.refetch();
+      modelsQuery.refetch();
+    }
   }
 
   const stats = statsQuery.data;
@@ -218,7 +265,7 @@ export default function MonitorScreen() {
   const accounts = accountsQuery.data?.items ?? [];
   const trend = trendQuery.data?.trend ?? [];
   const topModels = (modelsQuery.data?.models ?? []).slice(0, 5);
-  const errorMessage = getErrorMessage(statsQuery.error ?? settingsQuery.error ?? accountsQuery.error ?? trendQuery.error ?? modelsQuery.error);
+  const errorMessage = getErrorMessage(statsQuery.error ?? settingsQuery.error ?? accountsQuery.error ?? rangeUsageQuery.error ?? trendQuery.error ?? modelsQuery.error);
   const currentPageErrorAccounts = accounts.filter(hasAccountError).length;
   const currentPageLimitedAccounts = accounts.filter((item) => hasAccountRateLimited(item)).length;
   const currentPageBusyAccounts = accounts.filter((item) => {
@@ -233,12 +280,34 @@ export default function MonitorScreen() {
   const rateLimitAccounts = stats?.ratelimit_accounts ?? currentPageLimitedAccounts;
   const averageDuration = stats?.average_duration_ms ?? stats?.avg_duration_ms;
   const latestTrendPoints = trend.slice(-6).reverse();
-  const selectedTokenTotal = trend.reduce((sum, item) => sum + item.total_tokens, 0);
-  const selectedCostTotal = trend.reduce((sum, item) => sum + item.cost, 0);
-  const selectedOutputTotal = trend.reduce((sum, item) => sum + item.output_tokens, 0);
+  const selectedTokenTotal = pickNumber(
+    rangeKey === 'total' ? stats?.total_tokens : rangeUsageQuery.data?.total_tokens,
+    trend.reduce((sum, item) => sum + item.total_tokens, 0),
+    rangeKey === '24h' ? stats?.today_tokens : undefined
+  );
+  const selectedCostTotal = pickNumber(
+    rangeKey === 'total' ? stats?.total_actual_cost ?? stats?.total_cost : rangeUsageQuery.data?.total_account_cost ?? rangeUsageQuery.data?.total_actual_cost ?? rangeUsageQuery.data?.total_cost,
+    trend.reduce((sum, item) => sum + (item.actual_cost ?? item.cost ?? 0), 0),
+    rangeKey === '24h' ? stats?.today_actual_cost ?? stats?.today_cost : undefined
+  );
+  const selectedOutputTotal = pickNumber(
+    rangeKey === 'total' ? stats?.total_output_tokens : rangeUsageQuery.data?.total_output_tokens,
+    trend.reduce((sum, item) => sum + item.output_tokens, 0),
+    rangeKey === '24h' ? stats?.today_output_tokens : undefined
+  );
+  const selectedInputTotal = pickNumber(
+    rangeKey === 'total' ? stats?.total_input_tokens : rangeUsageQuery.data?.total_input_tokens,
+    trend.reduce((sum, item) => sum + item.input_tokens, 0),
+    rangeKey === '24h' ? stats?.today_input_tokens : undefined
+  );
+  const selectedRequestTotal = pickNumber(
+    rangeKey === 'total' ? stats?.total_requests : rangeUsageQuery.data?.total_requests,
+    trend.reduce((sum, item) => sum + item.requests, 0),
+    rangeKey === '24h' ? stats?.today_requests : undefined
+  );
   const rangeTitle = RANGE_TITLE_MAP[rangeKey];
   const isLoading = statsQuery.isLoading || settingsQuery.isLoading || accountsQuery.isLoading;
-  const hasError = Boolean(statsQuery.error || settingsQuery.error || accountsQuery.error || trendQuery.error || modelsQuery.error);
+  const hasError = Boolean(statsQuery.error || settingsQuery.error || accountsQuery.error || rangeUsageQuery.error || trendQuery.error || modelsQuery.error);
 
   const throughputPoints = useMemo(
     () => trend.map((item) => ({ label: getPointLabel(item.date, rangeKey), value: item.total_tokens })),
@@ -249,13 +318,15 @@ export default function MonitorScreen() {
     [rangeKey, trend]
   );
   const costPoints = useMemo(
-    () => trend.map((item) => ({ label: getPointLabel(item.date, rangeKey), value: item.cost })),
+    () => trend.map((item) => ({ label: getPointLabel(item.date, rangeKey), value: item.actual_cost ?? item.cost })),
     [rangeKey, trend]
   );
-  const totalInputTokens = useMemo(() => trend.reduce((sum, item) => sum + item.input_tokens, 0), [trend]);
-  const totalOutputTokens = useMemo(() => trend.reduce((sum, item) => sum + item.output_tokens, 0), [trend]);
-  const totalCacheReadTokens = useMemo(() => trend.reduce((sum, item) => sum + item.cache_read_tokens, 0), [trend]);
-  const isRefreshing = statsQuery.isRefetching || settingsQuery.isRefetching || accountsQuery.isRefetching || trendQuery.isRefetching || modelsQuery.isRefetching;
+  const totalInputTokens = pickNumber(selectedInputTotal, 0) ?? 0;
+  const totalOutputTokens = pickNumber(selectedOutputTotal, 0) ?? 0;
+  const totalCacheReadTokens = rangeKey === 'total'
+    ? pickNumber(stats?.total_cache_read_tokens, 0) ?? 0
+    : trend.reduce((sum, item) => sum + item.cache_read_tokens, 0);
+  const isRefreshing = statsQuery.isRefetching || settingsQuery.isRefetching || accountsQuery.isRefetching || rangeUsageQuery.isRefetching || trendQuery.isRefetching || modelsQuery.isRefetching;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.page }}>
@@ -285,7 +356,7 @@ export default function MonitorScreen() {
                 );
               })}
             </View>
-            <Text style={{ marginTop: 8, fontSize: 12, color: colors.muted }}>{range.start_date} 到 {range.end_date}</Text>
+            <Text style={{ marginTop: 8, fontSize: 12, color: colors.muted }}>{range ? `${range.start_date} 到 ${range.end_date}` : '全部历史数据'}</Text>
           </View>
         </View>
 
@@ -319,13 +390,13 @@ export default function MonitorScreen() {
             <View style={{ flexDirection: 'row', gap: 12 }}>
               <StatCard
                 title={`${rangeTitle} Token`}
-                value={formatTokenDisplay(rangeKey === '24h' ? selectedTokenTotal || stats?.today_tokens : selectedTokenTotal)}
-                detail={`输出 ${formatTokenDisplay(rangeKey === '24h' ? selectedOutputTotal || stats?.today_output_tokens : selectedOutputTotal)}`}
+                value={formatTokenDisplay(selectedTokenTotal)}
+                detail={`请求 ${formatNumber(selectedRequestTotal)} · 输出 ${formatTokenDisplay(selectedOutputTotal)}`}
               />
               <StatCard
                 title={`${rangeTitle} 成本`}
-                value={formatMoney(rangeKey === '24h' ? selectedCostTotal || stats?.today_cost : selectedCostTotal)}
-                detail={`TPM ${formatNumber(stats?.tpm)}`}
+                value={formatMoney(selectedCostTotal)}
+                detail={rangeKey === 'total' ? `累计请求 ${formatNumber(stats?.total_requests)}` : `TPM ${formatNumber(stats?.tpm)}`}
               />
             </View>
             <View style={{ flexDirection: 'row', gap: 12 }}>
@@ -375,15 +446,15 @@ export default function MonitorScreen() {
               </Pressable>
             </Section>
 
-            {throughputPoints.length > 1 ? (
+            {rangeKey !== 'total' && throughputPoints.length > 1 ? (
               <LineTrendChart title="Token 吞吐" subtitle="当前时间范围内的 Token 变化趋势" points={throughputPoints} color={chartColors.blue} formatValue={formatTokenDisplay} />
             ) : null}
 
-            {requestPoints.length > 1 ? (
+            {rangeKey !== 'total' && requestPoints.length > 1 ? (
               <LineTrendChart title="请求趋势" subtitle="当前时间范围内的请求变化趋势" points={requestPoints} color={chartColors.teal} formatValue={formatCompactNumber} />
             ) : null}
 
-            {costPoints.length > 1 ? (
+            {rangeKey !== 'total' && costPoints.length > 1 ? (
               <LineTrendChart title="成本趋势" subtitle="当前时间范围内的成本变化趋势" points={costPoints} color={chartColors.violet} formatValue={formatMoney} />
             ) : null}
 
@@ -411,47 +482,51 @@ export default function MonitorScreen() {
               ]}
             />
 
-            <BarChartCard
-              title="热点模型"
-              subtitle="当前时间范围内最活跃的模型"
-              items={topModels.map((model) => ({
-                label: model.model,
-                value: model.total_tokens,
-                color: chartColors.blue,
-                meta: `请求 ${formatNumber(model.requests)} · 成本 ${formatMoney(model.cost)}`,
-              }))}
-              formatValue={formatCompactNumber}
-            />
+            {rangeKey !== 'total' ? (
+              <BarChartCard
+                title="热点模型"
+                subtitle="当前时间范围内最活跃的模型"
+                items={topModels.map((model) => ({
+                  label: model.model,
+                  value: model.total_tokens,
+                  color: chartColors.blue,
+                  meta: `请求 ${formatNumber(model.requests)} · 成本 ${formatMoney(model.actual_cost ?? model.cost)}`,
+                }))}
+                formatValue={formatCompactNumber}
+              />
+            ) : null}
 
-            <Section title="趋势摘要" subtitle="最近几个统计点的请求、Token 和成本变化">
-              {latestTrendPoints.length === 0 ? (
-                <Text style={{ fontSize: 14, color: colors.muted }}>当前时间范围没有趋势数据。</Text>
-              ) : (
-                <View style={{ gap: 12 }}>
-                  <View style={{ gap: 10 }}>
-                    {latestTrendPoints.map((point) => (
-                      <View key={point.date} style={{ backgroundColor: colors.surfaceSoft, borderRadius: 14, padding: 12 }}>
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>{point.date}</Text>
-                        <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
-                          <View style={{ flex: 1 }}>
-                            <Text style={{ fontSize: 11, color: colors.muted }}>请求</Text>
-                            <Text style={{ marginTop: 4, fontSize: 15, fontWeight: '700', color: colors.text }}>{formatCompactNumber(point.requests)}</Text>
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Text style={{ fontSize: 11, color: colors.muted }}>Token</Text>
-                            <Text style={{ marginTop: 4, fontSize: 15, fontWeight: '700', color: colors.text }}>{formatTokenDisplay(point.total_tokens)}</Text>
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Text style={{ fontSize: 11, color: colors.muted }}>成本</Text>
-                            <Text style={{ marginTop: 4, fontSize: 15, fontWeight: '700', color: colors.text }}>{formatMoney(point.cost)}</Text>
+            {rangeKey !== 'total' ? (
+              <Section title="趋势摘要" subtitle="最近几个统计点的请求、Token 和成本变化">
+                {latestTrendPoints.length === 0 ? (
+                  <Text style={{ fontSize: 14, color: colors.muted }}>当前时间范围没有趋势数据。</Text>
+                ) : (
+                  <View style={{ gap: 12 }}>
+                    <View style={{ gap: 10 }}>
+                      {latestTrendPoints.map((point) => (
+                        <View key={point.date} style={{ backgroundColor: colors.surfaceSoft, borderRadius: 14, padding: 12 }}>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>{point.date}</Text>
+                          <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ fontSize: 11, color: colors.muted }}>请求</Text>
+                              <Text style={{ marginTop: 4, fontSize: 15, fontWeight: '700', color: colors.text }}>{formatCompactNumber(point.requests)}</Text>
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ fontSize: 11, color: colors.muted }}>Token</Text>
+                              <Text style={{ marginTop: 4, fontSize: 15, fontWeight: '700', color: colors.text }}>{formatTokenDisplay(point.total_tokens)}</Text>
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ fontSize: 11, color: colors.muted }}>成本</Text>
+                              <Text style={{ marginTop: 4, fontSize: 15, fontWeight: '700', color: colors.text }}>{formatMoney(point.actual_cost ?? point.cost)}</Text>
+                            </View>
                           </View>
                         </View>
-                      </View>
-                    ))}
+                      ))}
+                    </View>
                   </View>
-                </View>
-              )}
-            </Section>
+                )}
+              </Section>
+            ) : null}
 
           </View>
         )}

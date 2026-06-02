@@ -26,6 +26,11 @@ export type DashboardStats = {
   total_requests: number;
   total_cost: number;
   total_tokens: number;
+  total_actual_cost?: number;
+  total_input_tokens?: number;
+  total_output_tokens?: number;
+  total_cache_read_tokens?: number;
+  total_cache_creation_tokens?: number;
   today_requests: number;
   today_cost: number;
   today_tokens: number;
@@ -161,6 +166,18 @@ export type AdminApiKey = {
   };
 };
 
+export type ApiKeyUsageSummary = {
+  api_key_id?: number;
+  today_actual_cost?: number;
+  total_actual_cost?: number;
+  total_cost?: number;
+  quota_used?: number;
+};
+
+export type ApiKeyUsageBatch = {
+  stats?: Record<string, ApiKeyUsageSummary>;
+};
+
 export type BalanceOperation = 'set' | 'add' | 'subtract';
 
 export type AdminGroup = {
@@ -182,11 +199,84 @@ export type AdminGroup = {
 };
 
 export type AccountTodayStats = {
-  requests: number;
-  tokens: number;
-  cost: number;
+  id?: number;
+  account_id?: number;
+  requests?: number;
+  total_requests?: number;
+  request_count?: number;
+  today_requests?: number;
+  tokens?: number;
+  total_tokens?: number;
+  today_tokens?: number;
+  input_tokens?: number;
+  output_tokens?: number;
+  cache_read_tokens?: number;
+  cache_creation_tokens?: number;
+  cost?: number;
+  actual_cost?: number;
+  today_actual_cost?: number;
+  total_actual_cost?: number;
+  total_cost?: number;
   standard_cost?: number;
   user_cost?: number;
+  [key: string]: string | number | boolean | null | undefined;
+};
+
+export type AccountTodayStatsBatch = {
+  stats?: Record<string, AccountTodayStats>;
+  items?: AccountTodayStats[];
+  accounts?: Record<string, AccountTodayStats>;
+};
+
+export type AccountWindowStats = {
+  requests?: number;
+  tokens?: number;
+  cost?: number;
+  actual_cost?: number;
+  standard_cost?: number;
+  user_cost?: number;
+  [key: string]: string | number | boolean | null | undefined;
+};
+
+export type AccountUsageWindow = {
+  utilization?: number;
+  resets_at?: string | null;
+  window_stats?: AccountWindowStats | null;
+  [key: string]: string | number | boolean | AccountWindowStats | null | undefined;
+};
+
+export type AccountUsage = {
+  source?: string;
+  error?: string | null;
+  five_hour?: AccountUsageWindow | null;
+  seven_day?: AccountUsageWindow | null;
+  seven_day_sonnet?: AccountUsageWindow | null;
+  [key: string]: string | number | boolean | AccountUsageWindow | null | undefined;
+};
+
+export type AccountAvailableModel = {
+  id: string;
+  name?: string;
+  [key: string]: string | number | boolean | null | undefined;
+};
+
+export type AccountTestEvent = {
+  type?: string;
+  success?: boolean;
+  error?: string;
+  text?: string;
+  model?: string;
+  image_url?: string;
+  mime_type?: string;
+  [key: string]: string | number | boolean | null | undefined;
+};
+
+export type AccountTestResult = {
+  success: boolean;
+  message: string;
+  model?: string;
+  text?: string;
+  events: AccountTestEvent[];
 };
 
 export type AdminAccount = {
@@ -200,6 +290,15 @@ export type AdminAccount = {
   concurrency?: number;
   current_concurrency?: number;
   rate_multiplier?: number;
+  quota_limit?: number;
+  quota_used?: number;
+  quota_daily_limit?: number;
+  quota_daily_used?: number;
+  quota_weekly_limit?: number;
+  quota_weekly_used?: number;
+  quota_daily_start?: string | null;
+  quota_weekly_start?: string | null;
+  credentials_status?: string | Record<string, string | number | boolean | null | undefined> | null;
   error_message?: string;
   updated_at?: string;
   last_used_at?: string | null;
@@ -234,6 +333,28 @@ export type AdminProxy = {
   quality_checked?: number | string | null;
   created_at?: string;
   updated_at?: string;
+};
+
+export type ProxyQualityCheckResult = {
+  proxy_id?: number;
+  score?: number;
+  grade?: string;
+  summary?: string;
+  checked_at?: string | number | null;
+  base_latency_ms?: number | null;
+  passed_count?: number;
+  warn_count?: number;
+  failed_count?: number;
+  challenge_count?: number;
+  exit_ip?: string | null;
+  country?: string | null;
+  country_code?: string | null;
+  items?: Array<{
+    name?: string;
+    status?: string;
+    message?: string;
+    latency_ms?: number | null;
+  }>;
 };
 
 export type AccountType = 'apikey' | 'oauth' | 'setup-token' | 'upstream';

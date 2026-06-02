@@ -1,15 +1,15 @@
-import { useQuery } from '@tanstack/react-query';
-import { Network, Search, ShieldCheck, ShieldOff } from 'lucide-react-native';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
+import { Network, Radar, Search, ShieldCheck, ShieldOff } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import { FlatList, RefreshControl, Text, TextInput, View } from 'react-native';
 
 import { ListCard } from '@/src/components/list-card';
 import { ScreenShell } from '@/src/components/screen-shell';
 import { useDebouncedValue } from '@/src/hooks/use-debounced-value';
 import { formatDisplayTime } from '@/src/lib/formatters';
-import { listProxies } from '@/src/services/admin';
+import { checkProxyQuality, listProxies } from '@/src/services/admin';
 import { colors } from '@/src/theme/colors';
-import type { AdminProxy } from '@/src/types/admin';
+import type { AdminProxy, ProxyQualityCheckResult } from '@/src/types/admin';
 
 type ProxyFilter = 'all' | 'active' | 'warning' | 'offline';
 
@@ -75,6 +75,28 @@ function getLocation(proxy: AdminProxy) {
   return parts.length > 0 ? parts.join(' / ') : '--';
 }
 
+function formatProxyCheckFeedback(result?: ProxyQualityCheckResult) {
+  const parts: string[] = [];
+
+  if (typeof result?.grade === 'string' && result.grade.trim()) {
+    parts.push(`等级 ${result.grade.trim()}`);
+  }
+
+  if (typeof result?.score === 'number' && Number.isFinite(result.score)) {
+    parts.push(`评分 ${Math.round(result.score)}`);
+  }
+
+  if (typeof result?.base_latency_ms === 'number' && Number.isFinite(result.base_latency_ms)) {
+    parts.push(`延迟 ${Math.round(result.base_latency_ms)}ms`);
+  }
+
+  if (typeof result?.summary === 'string' && result.summary.trim()) {
+    parts.push(result.summary.trim());
+  }
+
+  return parts.length > 0 ? parts.join(' · ') : '检测完成';
+}
+
 function MetricCell({ label, value }: { label: string; value: string }) {
   return (
     <View className="flex-1 rounded-[14px] bg-[#eef4f8] px-3 py-3">
@@ -96,12 +118,22 @@ function SummaryTile({ label, value, color }: { label: string; value: number; co
 export default function ProxiesScreen() {
   const [searchText, setSearchText] = useState('');
   const [filter, setFilter] = useState<ProxyFilter>('all');
+  const [checkingProxyId, setCheckingProxyId] = useState<number | null>(null);
+  const [feedbackByProxyId, setFeedbackByProxyId] = useState<Record<number, string>>({});
   const keyword = useDebouncedValue(searchText.trim(), 300);
+  const queryClient = useQueryClient();
 
   const proxiesQuery = useQuery({
     queryKey: ['proxies', keyword],
     queryFn: () => listProxies(keyword),
     staleTime: 60_000,
+  });
+
+  const checkMutation = useMutation({
+    mutationFn: (proxyId: number) => checkProxyQuality(proxyId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['proxies'] });
+    },
   });
 
   const proxies = proxiesQuery.data?.items ?? [];
@@ -174,8 +206,8 @@ export default function ProxiesScreen() {
   return (
     <ScreenShell
       title="代理池"
-      subtitle="查看代理延迟、质量评分、地区和绑定账号数量。"
-      titleAside={<Text className="rounded-full bg-[#dbeafe] px-2 py-1 text-[10px] font-bold text-[#1d4ed8]">只读监控</Text>}
+      subtitle="查看代理延迟、质量评分、地区和绑定账号数量，并支持手动检测。"
+      titleAside={<Text className="rounded-full bg-[#dbeafe] px-2 py-1 text-[10px] font-bold text-[#1d4ed8]">可手动检测</Text>}
       variant="minimal"
       scroll={false}
       bottomInsetClassName="pb-6"
@@ -200,6 +232,8 @@ export default function ProxiesScreen() {
         renderItem={({ item }) => {
           const badge = getProxyBadge(item);
           const isHealthy = badge.tone === 'success';
+          const isCheckingCurrent = checkingProxyId === item.id && checkMutation.isPending;
+          const feedback = feedbackByProxyId[item.id];
 
           return (
             <ListCard
@@ -226,7 +260,35 @@ export default function ProxiesScreen() {
 
                 {item.quality_summary ? <Text className="text-xs font-medium text-[#64748b]">质量摘要：{item.quality_summary}</Text> : null}
                 {item.latency_message ? <Text className="text-xs font-medium text-[#be123c]">延迟信息：{item.latency_message}</Text> : null}
-                <Text className="text-xs font-medium text-[#64748b]">最近检测 {formatQualityChecked(item.quality_checked || item.updated_at)}</Text>
+                <View className="flex-row flex-wrap items-center justify-between gap-2">
+                  <Text className="text-xs font-medium text-[#64748b]">最近检测 {formatQualityChecked(item.quality_checked || item.updated_at)}</Text>
+                  <Pressable
+                    disabled={isCheckingCurrent}
+                    onPress={(event) => {
+                      event.stopPropagation();
+                      setCheckingProxyId(item.id);
+                      checkMutation.mutate(item.id, {
+                        onSuccess: (result) => {
+                          setFeedbackByProxyId((current) => ({ ...current, [item.id]: formatProxyCheckFeedback(result) }));
+                        },
+                        onError: (error) => {
+                          const message = error instanceof Error && error.message ? error.message : '检测失败';
+                          setFeedbackByProxyId((current) => ({ ...current, [item.id]: message }));
+                        },
+                        onSettled: () => {
+                          setCheckingProxyId((current) => (current === item.id ? null : current));
+                        },
+                      });
+                    }}
+                    className={isCheckingCurrent ? 'flex-row items-center gap-2 rounded-full bg-[#dbeafe] px-4 py-2 opacity-80' : 'flex-row items-center gap-2 rounded-full bg-[#243044] px-4 py-2'}
+                  >
+                    {isCheckingCurrent ? <ActivityIndicator color={colors.primary} size="small" /> : <Radar color="#ffffff" size={14} />}
+                    <Text className={isCheckingCurrent ? 'text-xs font-bold text-[#1d4ed8]' : 'text-xs font-bold text-white'}>
+                      {isCheckingCurrent ? '检测中...' : '检测'}
+                    </Text>
+                  </Pressable>
+                </View>
+                {feedback ? <Text className="text-xs font-semibold text-[#0f766e]">检测结果：{feedback}</Text> : null}
               </View>
             </ListCard>
           );

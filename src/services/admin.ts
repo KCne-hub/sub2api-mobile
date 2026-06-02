@@ -1,10 +1,17 @@
-import { adminFetch } from '@/src/lib/admin-fetch';
+import { adminFetch, adminRawFetch } from '@/src/lib/admin-fetch';
 import type {
+  AccountAvailableModel,
+  AccountTestEvent,
+  AccountTestResult,
   AccountTodayStats,
+  AccountTodayStatsBatch,
+  AccountUsage,
   AdminAccount,
   AdminApiKey,
+  ApiKeyUsageBatch,
   AdminGroup,
   AdminProxy,
+  ProxyQualityCheckResult,
   AdminSettings,
   AdminUser,
   BalanceOperation,
@@ -113,6 +120,13 @@ export function listUserApiKeys(userId: number) {
   return adminFetch<PaginatedData<AdminApiKey>>(`/api/v1/admin/users/${userId}/api-keys${buildQuery({ page: 1, page_size: 100 })}`);
 }
 
+export function getBatchApiKeysUsage(apiKeyIds: number[]) {
+  return adminFetch<ApiKeyUsageBatch>('/api/v1/admin/dashboard/api-keys-usage', {
+    method: 'POST',
+    body: JSON.stringify({ api_key_ids: apiKeyIds }),
+  });
+}
+
 export function updateUserBalance(
   userId: number,
   body: { balance: number; operation: BalanceOperation; notes?: string }
@@ -146,16 +160,40 @@ export function getGroup(groupId: number) {
   return adminFetch<AdminGroup>(`/api/v1/admin/groups/${groupId}`);
 }
 
-export function listAccounts(search = '') {
-  return adminFetch<PaginatedData<AdminAccount>>(
-    `/api/v1/admin/accounts${buildQuery({ page: 1, page_size: 20, search: search.trim() })}`
+export async function listAccounts(search = '') {
+  const pageSize = 100;
+  const firstPage = await adminFetch<PaginatedData<AdminAccount>>(
+    `/api/v1/admin/accounts${buildQuery({ page: 1, page_size: pageSize, search: search.trim() })}`
   );
+
+  if ((firstPage.pages ?? 1) <= 1) {
+    return firstPage;
+  }
+
+  const remainingPages = await Promise.all(
+    Array.from({ length: firstPage.pages - 1 }, (_, index) =>
+      adminFetch<PaginatedData<AdminAccount>>(
+        `/api/v1/admin/accounts${buildQuery({ page: index + 2, page_size: pageSize, search: search.trim() })}`
+      )
+    )
+  );
+
+  return {
+    ...firstPage,
+    items: [firstPage.items, ...remainingPages.map((page) => page.items)].flat(),
+  };
 }
 
 export function listProxies(search = '') {
   return adminFetch<PaginatedData<AdminProxy>>(
     `/api/v1/admin/proxies${buildQuery({ page: 1, page_size: 50, search: search.trim() })}`
   );
+}
+
+export function checkProxyQuality(proxyId: number) {
+  return adminFetch<ProxyQualityCheckResult>(`/api/v1/admin/proxies/${proxyId}/quality-check`, {
+    method: 'POST',
+  });
 }
 
 export function getAccount(accountId: number) {
@@ -173,10 +211,124 @@ export function getAccountTodayStats(accountId: number) {
   return adminFetch<AccountTodayStats>(`/api/v1/admin/accounts/${accountId}/today-stats`);
 }
 
+export function getBatchAccountTodayStats(accountIds: number[]) {
+  return adminFetch<AccountTodayStatsBatch>('/api/v1/admin/accounts/today-stats/batch', {
+    method: 'POST',
+    body: JSON.stringify({ account_ids: accountIds }),
+  });
+}
+
+export function getAccountUsage(accountId: number, source?: string, force = false) {
+  return adminFetch<AccountUsage>(
+    `/api/v1/admin/accounts/${accountId}/usage${buildQuery({
+      source,
+      force: force ? 'true' : undefined,
+    })}`
+  );
+}
+
+export function getAccountAvailableModels(accountId: number) {
+  return adminFetch<AccountAvailableModel[]>(`/api/v1/admin/accounts/${accountId}/models`);
+}
+
+export function clearAccountError(accountId: number) {
+  return adminFetch(`/api/v1/admin/accounts/${accountId}/clear-error`, {
+    method: 'POST',
+  });
+}
+
 export function testAccount(accountId: number) {
   return adminFetch(`/api/v1/admin/accounts/${accountId}/test`, {
     method: 'POST',
   });
+}
+
+function getTestEventMessage(event: AccountTestEvent) {
+  if (event.error) {
+    return event.error;
+  }
+
+  if (event.success === true) {
+    return '检测成功';
+  }
+
+  return '检测失败';
+}
+
+function pickDefaultModel(models: AccountAvailableModel[], platform: string) {
+  if (models.length === 0) {
+    return '';
+  }
+
+  if (platform === 'gemini') {
+    return models[0].id;
+  }
+
+  return models.find((model) => model.id.toLowerCase().includes('sonnet'))?.id ?? models[0].id;
+}
+
+function parseSseLines(text: string) {
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith('data: '))
+    .map((line) => line.slice(6).trim())
+    .filter(Boolean);
+}
+
+export async function testAccountConnection(account: Pick<AdminAccount, 'id' | 'platform'>) {
+  const models = await getAccountAvailableModels(account.id).catch(() => []);
+  const modelId = pickDefaultModel(models, account.platform);
+
+  if (!modelId) {
+    throw new Error('没有可用模型，无法按网页方式检测');
+  }
+
+  const response = await adminRawFetch(`/api/v1/admin/accounts/${account.id}/test`, {
+    method: 'POST',
+    body: JSON.stringify({
+      model_id: modelId,
+      prompt: '',
+    }),
+  });
+
+  const rawText = await response.text();
+
+  if (!response.ok) {
+    throw new Error(rawText || `HTTP ${response.status}`);
+  }
+
+  const events: AccountTestEvent[] = [];
+
+  for (const payload of parseSseLines(rawText)) {
+    try {
+      events.push(JSON.parse(payload) as AccountTestEvent);
+    } catch {
+      // Ignore malformed stream fragments; the final status event is what matters.
+    }
+  }
+
+  const finalEvent =
+    [...events].reverse().find((event) => event.type === 'test_complete' || event.type === 'error') ??
+    events[events.length - 1];
+  const content = events
+    .filter((event) => event.type === 'content' && typeof event.text === 'string')
+    .map((event) => event.text)
+    .join('')
+    .trim();
+  const success = finalEvent?.type === 'test_complete' && finalEvent.success === true;
+
+  if (!finalEvent) {
+    throw new Error('检测没有返回结果');
+  }
+
+  return {
+    success,
+    model: finalEvent.model ?? modelId,
+    message: success ? `检测成功 · ${modelId}` : getTestEventMessage(finalEvent),
+    text: content,
+    events,
+  } satisfies AccountTestResult;
 }
 
 export function refreshAccount(accountId: number) {

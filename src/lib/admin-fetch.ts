@@ -62,3 +62,37 @@ export async function adminFetch<T>(
 
   return json.data as T;
 }
+
+export async function adminRawFetch(
+  path: string,
+  init: RequestInit = {},
+  options?: { idempotencyKey?: string }
+) {
+  const baseUrl = adminConfigState.baseUrl.trim().replace(/\/$/, '');
+  const adminApiKey = adminConfigState.adminApiKey.trim();
+
+  if (!baseUrl) {
+    throw new Error('BASE_URL_REQUIRED');
+  }
+
+  if (!adminApiKey) {
+    throw new Error('ADMIN_API_KEY_REQUIRED');
+  }
+
+  const headers = new Headers(init.headers);
+
+  if (!headers.has('Content-Type') && init.body) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  headers.set('x-api-key', adminApiKey);
+
+  if (options?.idempotencyKey) {
+    headers.set('Idempotency-Key', options.idempotencyKey);
+  }
+
+  return fetch(buildRequestUrl(baseUrl, path), {
+    ...init,
+    headers,
+  });
+}

@@ -6,8 +6,9 @@ import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-nativ
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LineTrendChart } from '@/src/components/line-trend-chart';
-import { getDashboardSnapshot, getUsageStats, getUser, listUserApiKeys, updateUserBalance, updateUserStatus } from '@/src/services/admin';
-import type { AdminApiKey, BalanceOperation } from '@/src/types/admin';
+import { formatLocalDate } from '@/src/lib/formatters';
+import { getBatchApiKeysUsage, getDashboardSnapshot, getUsageStats, getUser, listUserApiKeys, updateUserBalance, updateUserStatus } from '@/src/services/admin';
+import type { AdminApiKey, ApiKeyUsageSummary, BalanceOperation } from '@/src/types/admin';
 
 const colors = {
   page: '#f6f8fb',
@@ -42,11 +43,9 @@ function getDateRange(rangeKey: RangeKey) {
     start.setDate(end.getDate() - 6);
   }
 
-  const toDate = (value: Date) => value.toISOString().slice(0, 10);
-
   return {
-    start_date: toDate(start),
-    end_date: toDate(end),
+    start_date: formatLocalDate(start),
+    end_date: formatLocalDate(end),
     granularity: rangeKey === '24h' ? ('hour' as const) : ('day' as const),
   };
 }
@@ -83,16 +82,25 @@ function formatTokenValue(value?: number | null) {
   return new Intl.NumberFormat('en-US').format(number);
 }
 
+function formatQuotaNumber(value?: number | null) {
+  const number = Number(value ?? 0);
+  if (!Number.isFinite(number)) return '0';
+  return number.toLocaleString('en-US', {
+    maximumFractionDigits: 6,
+  });
+}
 
-function formatQuotaUsage(quotaUsed?: number | null, quota?: number | null) {
-  const used = Number(quotaUsed ?? 0);
+function formatQuotaLimit(quota?: number | null) {
   const limit = Number(quota ?? 0);
-
   if (limit <= 0) {
     return '∞';
   }
 
-  return `${used}`;
+  return formatQuotaNumber(limit);
+}
+
+function pickApiKeyUsedQuota(item: AdminApiKey, usage?: ApiKeyUsageSummary) {
+  return usage?.total_actual_cost ?? usage?.total_cost ?? usage?.quota_used ?? item.quota_used;
 }
 
 function formatTime(value?: string | null) {
@@ -195,7 +203,21 @@ function CopyInlineButton({ copied, onPress }: { copied: boolean; onPress: () =>
   );
 }
 
-function KeyItem({ item, copied, onCopy }: { item: AdminApiKey; copied: boolean; onCopy: () => void }) {
+function KeyItem({
+  item,
+  copied,
+  onCopy,
+  usage,
+  usageLoading,
+}: {
+  item: AdminApiKey;
+  copied: boolean;
+  onCopy: () => void;
+  usage?: ApiKeyUsageSummary;
+  usageLoading: boolean;
+}) {
+  const usedQuota = pickApiKeyUsedQuota(item, usage);
+
   return (
     <View
       style={{
@@ -220,12 +242,20 @@ function KeyItem({ item, copied, onCopy }: { item: AdminApiKey; copied: boolean;
 
       <Text style={{ marginTop: 10, fontSize: 12, lineHeight: 18, color: colors.text }}>{item.key || '--'}</Text>
 
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginTop: 12 }}>
-        <View style={{ flex: 1 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12, marginTop: 12 }}>
+        <View style={{ width: '48.5%' }}>
           <Text style={{ fontSize: 11, color: colors.subtext }}>已用额度</Text>
-          <Text style={{ marginTop: 4, fontSize: 16, fontWeight: '700', color: colors.text }}>{formatQuotaUsage(item.quota_used, item.quota)}</Text>
+          <Text style={{ marginTop: 4, fontSize: 16, fontWeight: '700', color: colors.text }}>{usageLoading ? '...' : formatQuotaNumber(usedQuota)}</Text>
         </View>
-        <View style={{ flex: 1, alignItems: 'flex-end' }}>
+        <View style={{ width: '48.5%' }}>
+          <Text style={{ fontSize: 11, color: colors.subtext }}>额度上限</Text>
+          <Text style={{ marginTop: 4, fontSize: 16, fontWeight: '700', color: colors.text }}>{formatQuotaLimit(item.quota)}</Text>
+        </View>
+        <View style={{ width: '48.5%' }}>
+          <Text style={{ fontSize: 11, color: colors.subtext }}>今日用量</Text>
+          <Text style={{ marginTop: 4, fontSize: 15, fontWeight: '600', color: colors.text }}>{usageLoading ? '...' : formatQuotaNumber(usage?.today_actual_cost ?? 0)}</Text>
+        </View>
+        <View style={{ width: '100%' }}>
           <Text style={{ fontSize: 11, color: colors.subtext }}>最后使用时间</Text>
           <Text style={{ marginTop: 4, fontSize: 13, color: colors.subtext }}>{formatTime(item.last_used_at || item.updated_at || item.created_at)}</Text>
         </View>
@@ -281,8 +311,6 @@ export default function UserDetailScreen() {
       }),
     enabled: Number.isFinite(userId),
   });
-;
-;
 
   const balanceMutation = useMutation({
     mutationFn: (payload: { amount: number; notes?: string; operation: BalanceOperation }) =>
@@ -313,6 +341,13 @@ export default function UserDetailScreen() {
 
   const user = userQuery.data;
   const apiKeys = apiKeysQuery.data?.items ?? [];
+  const apiKeyIds = useMemo(() => apiKeys.map((item) => item.id), [apiKeys]);
+  const apiKeyUsageQuery = useQuery({
+    queryKey: ['api-key-usage-batch', userId, apiKeyIds.join(',')],
+    queryFn: () => getBatchApiKeysUsage(apiKeyIds),
+    enabled: Number.isFinite(userId) && apiKeyIds.length > 0,
+    staleTime: 60_000,
+  });
 
   const filteredApiKeys = useMemo(() => {
     const keyword = searchText.trim().toLowerCase();
@@ -552,7 +587,14 @@ export default function UserDetailScreen() {
               filteredApiKeys.length > 0 ? (
                 <View>
                   {filteredApiKeys.map((item) => (
-                    <KeyItem key={item.id} item={item} copied={copiedKeyId === item.id} onCopy={() => copyKey(item)} />
+                    <KeyItem
+                      key={item.id}
+                      item={item}
+                      copied={copiedKeyId === item.id}
+                      onCopy={() => copyKey(item)}
+                      usage={apiKeyUsageQuery.data?.stats?.[String(item.id)]}
+                      usageLoading={apiKeyUsageQuery.isLoading}
+                    />
                   ))}
                 </View>
               ) : (
