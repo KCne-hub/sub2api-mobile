@@ -10,24 +10,11 @@ import { DonutChartCard } from '@/src/components/donut-chart-card';
 import { LineTrendChart } from '@/src/components/line-trend-chart';
 import { getAdminSettings, getDashboardModels, getDashboardStats, getDashboardTrend, listAccounts } from '@/src/services/admin';
 import { adminConfigState, hasAuthenticatedAdminSession } from '@/src/store/admin-config';
+import { chartColors, colors } from '@/src/theme/colors';
 
 const { useSnapshot } = require('valtio/react');
 
 type RangeKey = '24h' | '7d' | '30d';
-
-const colors = {
-  page: '#eef2ff',
-  card: '#ffffff',
-  mutedCard: '#eef2ff',
-  primary: '#7c3aed',
-  text: '#0f172a',
-  subtext: '#475569',
-  border: '#c7d2fe',
-  dangerBg: '#ffe4e6',
-  danger: '#be123c',
-  successBg: '#dcfce7',
-  success: '#16a34a',
-};
 
 const RANGE_OPTIONS: Array<{ key: RangeKey; label: string }> = [
   { key: '24h', label: '24H' },
@@ -116,6 +103,19 @@ function formatTokenDisplay(value?: number) {
   return formatTokenValue(value);
 }
 
+function formatDuration(value?: number) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return '--';
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}s`;
+  return `${Math.round(value)}ms`;
+}
+
+function formatTime(value?: string | null) {
+  if (!value) return '更新时间未知';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '更新时间未知';
+  return `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
 function getPointLabel(value: string, rangeKey: RangeKey) {
   if (rangeKey === '24h') {
     return value.slice(11, 13);
@@ -143,11 +143,11 @@ function getErrorMessage(error: unknown) {
 
 function Section({ title, subtitle, children, right }: { title: string; subtitle?: string; children: React.ReactNode; right?: React.ReactNode }) {
   return (
-    <View style={{ backgroundColor: colors.card, borderRadius: 18, padding: 16 }}>
+    <View style={{ backgroundColor: colors.surface, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: colors.border }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>{title}</Text>
-          {subtitle ? <Text style={{ marginTop: 6, fontSize: 12, color: colors.subtext }}>{subtitle}</Text> : null}
+          {subtitle ? <Text style={{ marginTop: 6, fontSize: 12, color: colors.muted }}>{subtitle}</Text> : null}
         </View>
         {right}
       </View>
@@ -158,10 +158,10 @@ function Section({ title, subtitle, children, right }: { title: string; subtitle
 
 function StatCard({ title, value, detail }: { title: string; value: string; detail?: string }) {
   return (
-    <View style={{ flex: 1, backgroundColor: colors.card, borderRadius: 16, padding: 14 }}>
-      <Text style={{ fontSize: 12, color: '#8a8072' }}>{title}</Text>
+    <View style={{ flex: 1, backgroundColor: colors.surface, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: colors.border }}>
+      <Text style={{ fontSize: 12, color: colors.muted }}>{title}</Text>
       <Text style={{ marginTop: 8, fontSize: 24, fontWeight: '700', color: colors.text }}>{value}</Text>
-      {detail ? <Text style={{ marginTop: 6, fontSize: 12, color: colors.subtext }}>{detail}</Text> : null}
+      {detail ? <Text style={{ marginTop: 6, fontSize: 12, color: colors.muted }}>{detail}</Text> : null}
     </View>
   );
 }
@@ -229,6 +229,9 @@ export default function MonitorScreen() {
   const aggregatedErrorAccounts = stats?.error_accounts ?? 0;
   const errorAccounts = Math.max(aggregatedErrorAccounts, currentPageErrorAccounts);
   const healthyAccounts = stats?.normal_accounts ?? Math.max(totalAccounts - errorAccounts, 0);
+  const overloadAccounts = stats?.overload_accounts ?? 0;
+  const rateLimitAccounts = stats?.ratelimit_accounts ?? currentPageLimitedAccounts;
+  const averageDuration = stats?.average_duration_ms ?? stats?.avg_duration_ms;
   const latestTrendPoints = trend.slice(-6).reverse();
   const selectedTokenTotal = trend.reduce((sum, item) => sum + item.total_tokens, 0);
   const selectedCostTotal = trend.reduce((sum, item) => sum + item.cost, 0);
@@ -260,12 +263,12 @@ export default function MonitorScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 110 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => void refetchAll()} tintColor="#1d5f55" />}
+        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => void refetchAll()} tintColor={colors.primary} />}
       >
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 28, fontWeight: '700', color: colors.text }}>概览</Text>
-            <Text style={{ marginTop: 6, fontSize: 13, color: '#8a8072' }}>{siteName} 的当前运行状态。</Text>
+            <Text style={{ marginTop: 6, fontSize: 13, color: colors.muted }}>{siteName} 的当前运行状态。</Text>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
             <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -274,40 +277,40 @@ export default function MonitorScreen() {
                 return (
                   <Pressable
                     key={option.key}
-                    style={{ backgroundColor: active ? colors.primary : colors.border, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 }}
+                    style={{ backgroundColor: active ? colors.primary : colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 }}
                     onPress={() => setRangeKey(option.key)}
                   >
-                    <Text style={{ color: active ? '#fff' : '#4e463e', fontSize: 12, fontWeight: '700' }}>{option.label}</Text>
+                    <Text style={{ color: active ? '#fff' : colors.textSoft, fontSize: 12, fontWeight: '700' }}>{option.label}</Text>
                   </Pressable>
                 );
               })}
             </View>
-            <Text style={{ marginTop: 8, fontSize: 12, color: colors.subtext }}>{range.start_date} 到 {range.end_date}</Text>
+            <Text style={{ marginTop: 8, fontSize: 12, color: colors.muted }}>{range.start_date} 到 {range.end_date}</Text>
           </View>
         </View>
 
         {!hasAccount ? (
           <Section title="未连接服务器" subtitle="需要先配置连接">
-            <Text style={{ fontSize: 14, lineHeight: 22, color: colors.subtext }}>请先前往“服务器”页填写服务地址和 Admin Token，再返回查看概览数据。</Text>
+            <Text style={{ fontSize: 14, lineHeight: 22, color: colors.muted }}>请先前往“服务器”页填写服务地址和 Admin Token，再返回查看概览数据。</Text>
             <Pressable style={{ marginTop: 14, alignSelf: 'flex-start', backgroundColor: colors.primary, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12 }} onPress={() => router.push('/settings')}>
               <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>去配置服务器</Text>
             </Pressable>
           </Section>
         ) : isLoading ? (
           <Section title="正在加载概览" subtitle="请稍候">
-            <Text style={{ fontSize: 14, lineHeight: 22, color: colors.subtext }}>已连接服务器，正在拉取概览、模型和账号状态数据。</Text>
+            <Text style={{ fontSize: 14, lineHeight: 22, color: colors.muted }}>已连接服务器，正在拉取概览、模型和账号状态数据。</Text>
           </Section>
         ) : hasError ? (
           <Section title="加载失败" subtitle="请检查连接配置">
-            <View style={{ borderRadius: 14, backgroundColor: colors.dangerBg, paddingHorizontal: 14, paddingVertical: 12 }}>
+            <View style={{ borderRadius: 14, backgroundColor: colors.dangerSoft, paddingHorizontal: 14, paddingVertical: 12 }}>
               <Text style={{ color: colors.danger, fontSize: 14, lineHeight: 20 }}>{errorMessage}</Text>
             </View>
             <View style={{ flexDirection: 'row', gap: 12, marginTop: 14 }}>
               <Pressable style={{ flex: 1, backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 12, alignItems: 'center' }} onPress={refetchAll}>
                 <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>重试</Text>
               </Pressable>
-              <Pressable style={{ flex: 1, backgroundColor: colors.border, borderRadius: 14, paddingVertical: 12, alignItems: 'center' }} onPress={() => router.push('/settings')}>
-                <Text style={{ color: '#4e463e', fontSize: 13, fontWeight: '700' }}>检查服务器</Text>
+              <Pressable style={{ flex: 1, backgroundColor: colors.surfaceSoft, borderRadius: 14, paddingVertical: 12, alignItems: 'center' }} onPress={() => router.push('/settings')}>
+                <Text style={{ color: colors.textSoft, fontSize: 13, fontWeight: '700' }}>检查服务器</Text>
               </Pressable>
             </View>
           </Section>
@@ -325,60 +328,72 @@ export default function MonitorScreen() {
                 detail={`TPM ${formatNumber(stats?.tpm)}`}
               />
             </View>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <StatCard
+                title="平均延迟"
+                value={formatDuration(averageDuration)}
+                detail={`RPM ${formatNumber(stats?.rpm)}`}
+              />
+              <StatCard
+                title="统计状态"
+                value={stats?.stats_stale ? '待刷新' : '最新'}
+                detail={formatTime(stats?.stats_updated_at)}
+              />
+            </View>
             <Section
               title="账号概览"
               subtitle="总数、健康、异常和限流状态一览"
               right={(
                 <Pressable
-                  style={{ alignSelf: 'flex-start', backgroundColor: colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 }}
+                  style={{ alignSelf: 'flex-start', backgroundColor: colors.surfaceSoft, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 }}
                   onPress={() => router.push('/accounts/overview')}
                 >
-                  <Text style={{ color: '#4e463e', fontSize: 12, fontWeight: '700' }}>账号清单</Text>
+                  <Text style={{ color: colors.textSoft, fontSize: 12, fontWeight: '700' }}>账号清单</Text>
                 </Pressable>
               )}
             >
               <Pressable onPress={() => router.push('/accounts/overview')}>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <View style={{ flex: 1, backgroundColor: colors.mutedCard, borderRadius: 14, padding: 12 }}>
-                    <Text style={{ fontSize: 11, color: '#8a8072' }}>总数</Text>
+                  <View style={{ flex: 1, backgroundColor: colors.surfaceSoft, borderRadius: 14, padding: 12 }}>
+                    <Text style={{ fontSize: 11, color: colors.muted }}>总数</Text>
                     <Text style={{ marginTop: 6, fontSize: 18, fontWeight: '700', color: colors.text }}>{formatNumber(totalAccounts)}</Text>
                   </View>
-                  <View style={{ flex: 1, backgroundColor: colors.mutedCard, borderRadius: 14, padding: 12 }}>
-                    <Text style={{ fontSize: 11, color: '#8a8072' }}>健康</Text>
+                  <View style={{ flex: 1, backgroundColor: colors.successSoft, borderRadius: 14, padding: 12 }}>
+                    <Text style={{ fontSize: 11, color: colors.success }}>健康</Text>
                     <Text style={{ marginTop: 6, fontSize: 18, fontWeight: '700', color: colors.text }}>{formatNumber(healthyAccounts)}</Text>
                   </View>
-                  <View style={{ flex: 1, backgroundColor: colors.dangerBg, borderRadius: 14, padding: 12 }}>
+                  <View style={{ flex: 1, backgroundColor: colors.dangerSoft, borderRadius: 14, padding: 12 }}>
                     <Text style={{ fontSize: 11, color: colors.danger }}>异常</Text>
                     <Text style={{ marginTop: 6, fontSize: 18, fontWeight: '700', color: colors.danger }}>{formatNumber(errorAccounts)}</Text>
                   </View>
-                  <View style={{ flex: 1, backgroundColor: colors.mutedCard, borderRadius: 14, padding: 12 }}>
-                    <Text style={{ fontSize: 11, color: '#8a8072' }}>限流</Text>
-                    <Text style={{ marginTop: 6, fontSize: 18, fontWeight: '700', color: colors.text }}>{formatNumber(currentPageLimitedAccounts)}</Text>
+                  <View style={{ flex: 1, backgroundColor: colors.warningSoft, borderRadius: 14, padding: 12 }}>
+                    <Text style={{ fontSize: 11, color: colors.warning }}>限流</Text>
+                    <Text style={{ marginTop: 6, fontSize: 18, fontWeight: '700', color: colors.warning }}>{formatNumber(rateLimitAccounts)}</Text>
                   </View>
                 </View>
-                <Text style={{ marginTop: 10, fontSize: 12, color: colors.subtext }}>总数 / 健康 / 异常优先使用后端聚合字段；限流与繁忙基于当前页账号列表。点击进入账号清单。</Text>
+                <Text style={{ marginTop: 10, fontSize: 12, color: colors.muted }}>过载 {formatNumber(overloadAccounts)} · 繁忙 {formatNumber(currentPageBusyAccounts)} · 点击进入账号清单。</Text>
               </Pressable>
             </Section>
 
             {throughputPoints.length > 1 ? (
-              <LineTrendChart title="Token 吞吐" subtitle="当前时间范围内的 Token 变化趋势" points={throughputPoints} color="#a34d2d" formatValue={formatTokenDisplay} />
+              <LineTrendChart title="Token 吞吐" subtitle="当前时间范围内的 Token 变化趋势" points={throughputPoints} color={chartColors.blue} formatValue={formatTokenDisplay} />
             ) : null}
 
             {requestPoints.length > 1 ? (
-              <LineTrendChart title="请求趋势" subtitle="当前时间范围内的请求变化趋势" points={requestPoints} color="#1d5f55" formatValue={formatCompactNumber} />
+              <LineTrendChart title="请求趋势" subtitle="当前时间范围内的请求变化趋势" points={requestPoints} color={chartColors.teal} formatValue={formatCompactNumber} />
             ) : null}
 
             {costPoints.length > 1 ? (
-              <LineTrendChart title="成本趋势" subtitle="当前时间范围内的成本变化趋势" points={costPoints} color="#7651c8" formatValue={formatMoney} />
+              <LineTrendChart title="成本趋势" subtitle="当前时间范围内的成本变化趋势" points={costPoints} color={chartColors.violet} formatValue={formatMoney} />
             ) : null}
 
             <BarChartCard
               title="Token 结构"
               subtitle="输入、输出、缓存读取占比"
               items={[
-                { label: '输入 Token', value: totalInputTokens, color: '#1d5f55', hint: '请求进入模型前消耗的 token。' },
-                { label: '输出 Token', value: totalOutputTokens, color: '#d38b36', hint: '模型返回内容消耗的 token。' },
-                { label: '缓存读取 Token', value: totalCacheReadTokens, color: '#7d7468', hint: '命中缓存后复用的 token。' },
+                { label: '输入 Token', value: totalInputTokens, color: chartColors.blue, hint: '请求进入模型前消耗的 token。' },
+                { label: '输出 Token', value: totalOutputTokens, color: chartColors.teal, hint: '模型返回内容消耗的 token。' },
+                { label: '缓存读取 Token', value: totalCacheReadTokens, color: chartColors.amber, hint: '命中缓存后复用的 token。' },
               ]}
               formatValue={formatTokenDisplay}
             />
@@ -389,10 +404,10 @@ export default function MonitorScreen() {
               centerLabel="总账号"
               centerValue={formatNumber(totalAccounts)}
               segments={[
-                { label: '健康', value: healthyAccounts, color: '#1d5f55' },
-                { label: '繁忙', value: currentPageBusyAccounts, color: '#d38b36' },
-                { label: '限流', value: currentPageLimitedAccounts, color: '#7d7468' },
-                { label: '异常', value: errorAccounts, color: '#a34d2d' },
+                { label: '健康', value: healthyAccounts, color: chartColors.teal },
+                { label: '繁忙', value: currentPageBusyAccounts, color: chartColors.amber },
+                { label: '限流', value: rateLimitAccounts, color: chartColors.gray },
+                { label: '异常', value: errorAccounts, color: chartColors.rose },
               ]}
             />
 
@@ -402,7 +417,7 @@ export default function MonitorScreen() {
               items={topModels.map((model) => ({
                 label: model.model,
                 value: model.total_tokens,
-                color: '#a34d2d',
+                color: chartColors.blue,
                 meta: `请求 ${formatNumber(model.requests)} · 成本 ${formatMoney(model.cost)}`,
               }))}
               formatValue={formatCompactNumber}
@@ -410,24 +425,24 @@ export default function MonitorScreen() {
 
             <Section title="趋势摘要" subtitle="最近几个统计点的请求、Token 和成本变化">
               {latestTrendPoints.length === 0 ? (
-                <Text style={{ fontSize: 14, color: colors.subtext }}>当前时间范围没有趋势数据。</Text>
+                <Text style={{ fontSize: 14, color: colors.muted }}>当前时间范围没有趋势数据。</Text>
               ) : (
                 <View style={{ gap: 12 }}>
                   <View style={{ gap: 10 }}>
                     {latestTrendPoints.map((point) => (
-                      <View key={point.date} style={{ backgroundColor: colors.mutedCard, borderRadius: 14, padding: 12 }}>
+                      <View key={point.date} style={{ backgroundColor: colors.surfaceSoft, borderRadius: 14, padding: 12 }}>
                         <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>{point.date}</Text>
                         <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
                           <View style={{ flex: 1 }}>
-                            <Text style={{ fontSize: 11, color: '#8a8072' }}>请求</Text>
+                            <Text style={{ fontSize: 11, color: colors.muted }}>请求</Text>
                             <Text style={{ marginTop: 4, fontSize: 15, fontWeight: '700', color: colors.text }}>{formatCompactNumber(point.requests)}</Text>
                           </View>
                           <View style={{ flex: 1 }}>
-                            <Text style={{ fontSize: 11, color: '#8a8072' }}>Token</Text>
+                            <Text style={{ fontSize: 11, color: colors.muted }}>Token</Text>
                             <Text style={{ marginTop: 4, fontSize: 15, fontWeight: '700', color: colors.text }}>{formatTokenDisplay(point.total_tokens)}</Text>
                           </View>
                           <View style={{ flex: 1 }}>
-                            <Text style={{ fontSize: 11, color: '#8a8072' }}>成本</Text>
+                            <Text style={{ fontSize: 11, color: colors.muted }}>成本</Text>
                             <Text style={{ marginTop: 4, fontSize: 15, fontWeight: '700', color: colors.text }}>{formatMoney(point.cost)}</Text>
                           </View>
                         </View>

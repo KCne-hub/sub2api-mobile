@@ -9,6 +9,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { queryClient } from '@/src/lib/query-client';
 import { markPerformance } from '@/src/lib/performance';
 import { adminConfigState, hydrateAdminConfig } from '@/src/store/admin-config';
+import { colors } from '@/src/theme/colors';
 
 const { useSnapshot } = require('valtio/react');
 
@@ -30,8 +31,8 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         {!isReady ? (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f4efe4' }}>
-            <ActivityIndicator color="#1d5f55" />
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.page }}>
+            <ActivityIndicator color={colors.primary} />
           </View>
         ) : (
           <Stack initialRouteName="(tabs)" screenOptions={{ headerShown: false }}>
@@ -45,8 +46,8 @@ export default function RootLayout() {
                 headerShown: true,
                 title: '用户详情',
                 headerBackTitle: '返回',
-                headerTintColor: '#16181a',
-                headerStyle: { backgroundColor: '#f4efe4' },
+                headerTintColor: colors.text,
+                headerStyle: { backgroundColor: colors.page },
                 headerShadowVisible: false,
               }}
             />
@@ -58,8 +59,8 @@ export default function RootLayout() {
                 headerShown: true,
                 title: '添加账号',
                 headerBackTitle: '返回',
-                headerTintColor: '#16181a',
-                headerStyle: { backgroundColor: '#f4efe4' },
+                headerTintColor: colors.text,
+                headerStyle: { backgroundColor: colors.page },
                 headerShadowVisible: false,
               }}
             />
@@ -71,8 +72,8 @@ export default function RootLayout() {
                 headerShown: true,
                 title: '添加用户',
                 headerBackTitle: '返回',
-                headerTintColor: '#16181a',
-                headerStyle: { backgroundColor: '#f4efe4' },
+                headerTintColor: colors.text,
+                headerStyle: { backgroundColor: colors.page },
                 headerShadowVisible: false,
               }}
             />
@@ -84,8 +85,8 @@ export default function RootLayout() {
                 headerShown: true,
                 title: '添加账号',
                 headerBackTitle: '返回',
-                headerTintColor: '#16181a',
-                headerStyle: { backgroundColor: '#f4efe4' },
+                headerTintColor: colors.text,
+                headerStyle: { backgroundColor: colors.page },
                 headerShadowVisible: false,
               }}
             />
@@ -97,8 +98,8 @@ export default function RootLayout() {
                 headerShown: true,
                 title: '账号清单',
                 headerBackTitle: '返回',
-                headerTintColor: '#16181a',
-                headerStyle: { backgroundColor: '#f4efe4' },
+                headerTintColor: colors.text,
+                headerStyle: { backgroundColor: colors.page },
                 headerShadowVisible: false,
               }}
             />

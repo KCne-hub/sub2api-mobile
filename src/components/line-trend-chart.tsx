@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import { Text, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
+import { colors, shadows } from '@/src/theme/colors';
+
 type Point = {
   label: string;
   value: number;
@@ -18,7 +20,7 @@ type LineTrendChartProps = {
 
 export function LineTrendChart({
   points,
-  color = '#1d5f55',
+  color = colors.primary,
   title,
   subtitle,
   formatValue = (value) => `${value}`,
@@ -50,12 +52,12 @@ export function LineTrendChart({
   const tickPoints = points.filter((_, index) => index === 0 || index === points.length - 1 || index % tickStep === 0);
 
   return (
-    <View className="rounded-[22px] border border-[#dbeafe] bg-white p-4">
-      <Text className="text-xs uppercase tracking-[1.6px] text-[#6366f1]">{title}</Text>
-      <Text className={`mt-1 font-black text-[#0f172a] ${compact ? 'text-[22px]' : 'text-[28px]'}`}>{formatValue(latest)}</Text>
-      <Text numberOfLines={1} className="mt-1 text-xs font-medium text-[#64748b]">{subtitle}</Text>
+    <View className="rounded-[18px] border bg-white p-4" style={{ borderColor: colors.border, boxShadow: shadows.subtle }}>
+      <Text className="text-xs font-semibold text-[#2563eb]">{title}</Text>
+      <Text className={`mt-1 font-bold text-[#172033] ${compact ? 'text-[22px]' : 'text-[28px]'}`}>{formatValue(latest)}</Text>
+      <Text numberOfLines={1} className="mt-1 text-xs font-medium text-[#667085]">{subtitle}</Text>
 
-      <View className={`overflow-hidden rounded-[16px] bg-[#eef2ff] p-3 ${compact ? 'mt-3' : 'mt-4'}`}>
+      <View className={`overflow-hidden rounded-[16px] bg-[#eef4f8] p-3 ${compact ? 'mt-3' : 'mt-4'}`}>
         <Svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}>
           <Defs>
             <LinearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">

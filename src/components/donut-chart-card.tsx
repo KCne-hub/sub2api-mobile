@@ -1,6 +1,8 @@
 import { Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
+import { colors, shadows } from '@/src/theme/colors';
+
 type DonutSegment = {
   label: string;
   value: number;
@@ -34,9 +36,9 @@ export function DonutChartCard({
   let offset = 0;
 
   return (
-    <View className="rounded-[22px] border border-[#dbeafe] bg-white p-4">
-      <Text className="text-xs uppercase tracking-[1.6px] text-[#6366f1]">{title}</Text>
-      <Text numberOfLines={1} className="mt-1 text-xs font-medium text-[#64748b]">{subtitle}</Text>
+    <View className="rounded-[18px] border bg-white p-4" style={{ borderColor: colors.border, boxShadow: shadows.subtle }}>
+      <Text className="text-xs font-semibold text-[#2563eb]">{title}</Text>
+      <Text numberOfLines={1} className="mt-1 text-xs font-medium text-[#667085]">{subtitle}</Text>
 
       <View className="mt-4 items-center justify-center">
         <View className="items-center justify-center">
@@ -45,7 +47,7 @@ export function DonutChartCard({
               cx={size / 2}
               cy={size / 2}
               r={radius}
-              stroke="#e0e7ff"
+              stroke="#e7edf4"
               strokeWidth={strokeWidth}
               fill="none"
             />
@@ -73,8 +75,8 @@ export function DonutChartCard({
           </Svg>
 
           <View className="absolute items-center">
-            <Text className="text-xs uppercase tracking-[1.4px] text-[#64748b]">{centerLabel}</Text>
-            <Text className="mt-1 text-[28px] font-black text-[#0f172a]">{centerValue}</Text>
+            <Text className="text-xs font-semibold text-[#667085]">{centerLabel}</Text>
+            <Text className="mt-1 text-[28px] font-bold text-[#172033]">{centerValue}</Text>
           </View>
         </View>
       </View>
@@ -84,10 +86,10 @@ export function DonutChartCard({
           const percentage = Math.round((segment.value / total) * 100);
 
           return (
-            <View key={segment.label} className="flex-row items-center justify-between rounded-[14px] bg-[#eef2ff] px-3 py-2.5">
+            <View key={segment.label} className="flex-row items-center justify-between rounded-[14px] bg-[#eef4f8] px-3 py-2.5">
               <View className="flex-row items-center gap-3">
                 <View className="h-3 w-3 rounded-full" style={{ backgroundColor: segment.color }} />
-                <Text className="text-sm font-semibold text-[#0f172a]">{segment.label}</Text>
+                <Text className="text-sm font-semibold text-[#172033]">{segment.label}</Text>
               </View>
               <Text className="text-xs font-semibold text-[#475569]">{segment.value} · {percentage}%</Text>
             </View>

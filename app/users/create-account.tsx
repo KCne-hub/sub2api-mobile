@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+﻿import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Stack, router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
@@ -8,16 +8,16 @@ import { createAccount } from '@/src/services/admin';
 import type { AccountType } from '@/src/types/admin';
 
 const colors = {
-  page: '#f4efe4',
-  card: '#fbf8f2',
-  text: '#16181a',
-  subtext: '#6f665c',
-  border: '#e7dfcf',
-  primary: '#1d5f55',
-  dark: '#1b1d1f',
-  errorBg: '#f7e1d6',
-  errorText: '#a4512b',
-  muted: '#f7f1e6',
+  page: '#f6f8fb',
+  card: '#ffffff',
+  text: '#172033',
+  subtext: '#667085',
+  border: '#d8e0ea',
+  primary: '#2563eb',
+  dark: '#243044',
+  errorBg: '#fee4e2',
+  errorText: '#b42318',
+  muted: '#eef4f8',
 };
 
 const PLATFORM_OPTIONS = ['anthropic', 'openai', 'gemini', 'sora', 'antigravity'];
@@ -482,7 +482,7 @@ export default function CreateAccountScreen() {
             }}
             disabled={!canSubmit || createMutation.isPending}
             style={{
-              backgroundColor: !canSubmit || createMutation.isPending ? '#8a8072' : colors.dark,
+              backgroundColor: !canSubmit || createMutation.isPending ? '#98a2b3' : colors.dark,
               borderRadius: 12,
               paddingVertical: 14,
               alignItems: 'center',

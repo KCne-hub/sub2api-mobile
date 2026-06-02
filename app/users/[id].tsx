@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+﻿import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -10,16 +10,16 @@ import { getDashboardSnapshot, getUsageStats, getUser, listUserApiKeys, updateUs
 import type { AdminApiKey, BalanceOperation } from '@/src/types/admin';
 
 const colors = {
-  page: '#f4efe4',
-  card: '#fbf8f2',
-  text: '#16181a',
-  subtext: '#6f665c',
-  border: '#e7dfcf',
-  primary: '#1d5f55',
-  dark: '#1b1d1f',
-  errorBg: '#f7e1d6',
-  errorText: '#a4512b',
-  muted: '#f7f1e6',
+  page: '#f6f8fb',
+  card: '#ffffff',
+  text: '#172033',
+  subtext: '#667085',
+  border: '#d8e0ea',
+  primary: '#2563eb',
+  dark: '#243044',
+  errorBg: '#fee4e2',
+  errorText: '#b42318',
+  muted: '#eef4f8',
 };
 
 type RangeKey = '24h' | '7d' | '30d';
@@ -169,7 +169,7 @@ function MetricCard({ label, value }: { label: string; value: string }) {
 function StatusBadge({ text }: { text: string }) {
   const normalized = text.toLowerCase();
   const backgroundColor = normalized === 'active' ? '#dff4ea' : normalized === 'inactive' || normalized === 'disabled' ? '#ece5da' : '#f7e1d6';
-  const color = normalized === 'active' ? '#17663f' : normalized === 'inactive' || normalized === 'disabled' ? '#6f665c' : '#a4512b';
+  const color = normalized === 'active' ? '#17663f' : normalized === 'inactive' || normalized === 'disabled' ? '#6f665c' : '#b42318';
 
   return (
     <View style={{ backgroundColor, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 }}>
@@ -184,13 +184,13 @@ function CopyInlineButton({ copied, onPress }: { copied: boolean; onPress: () =>
       onPress={onPress}
       style={{
         marginLeft: 8,
-        backgroundColor: copied ? '#dff4ea' : '#e7dfcf',
+        backgroundColor: copied ? '#dff4ea' : '#d8e0ea',
         borderRadius: 999,
         paddingHorizontal: 10,
         paddingVertical: 6,
       }}
     >
-      <Text style={{ fontSize: 11, fontWeight: '700', color: copied ? '#17663f' : '#4e463e' }}>{copied ? '已复制' : '复制'}</Text>
+      <Text style={{ fontSize: 11, fontWeight: '700', color: copied ? '#17663f' : '#35445c' }}>{copied ? '已复制' : '复制'}</Text>
     </Pressable>
   );
 }

@@ -7,6 +7,7 @@ import { ListCard } from '@/src/components/list-card';
 import { ScreenShell } from '@/src/components/screen-shell';
 import { useDebouncedValue } from '@/src/hooks/use-debounced-value';
 import { listGroups } from '@/src/services/admin';
+import { colors } from '@/src/theme/colors';
 
 export default function GroupsScreen() {
   const [searchText, setSearchText] = useState('');
@@ -22,14 +23,14 @@ export default function GroupsScreen() {
   const listHeader = useMemo(
     () => (
       <View className="pb-4">
-        <View className="flex-row items-center rounded-[24px] bg-[#fbf8f2] px-4 py-3">
-          <Search color="#7d7468" size={18} />
+        <View className="flex-row items-center rounded-[16px] border border-[#d8e0ea] bg-white px-4 py-3">
+          <Search color={colors.primary} size={18} />
           <TextInput
             defaultValue=""
             onChangeText={setSearchText}
             placeholder="搜索分组名称"
-            placeholderTextColor="#9b9081"
-            className="ml-3 flex-1 text-base text-[#16181a]"
+            placeholderTextColor={colors.faint}
+            className="ml-3 flex-1 text-base text-[#172033]"
           />
         </View>
       </View>
@@ -45,8 +46,8 @@ export default function GroupsScreen() {
         icon={FolderKanban}
       >
         <View className="flex-row items-center gap-2">
-          <Layers3 color="#7d7468" size={14} />
-          <Text className="text-sm text-[#7d7468]">
+          <Layers3 color={colors.muted} size={14} />
+          <Text className="text-sm text-[#667085]">
             账号数 {group.account_count ?? 0} · {group.is_exclusive ? '独占分组' : '共享分组'}
           </Text>
         </View>
@@ -63,7 +64,7 @@ export default function GroupsScreen() {
     <ScreenShell
       title="分组管理"
       subtitle=""
-      titleAside={<Text className="text-[11px] text-[#a2988a]">查看分组与调度归属。</Text>}
+      titleAside={<Text className="text-[11px] text-[#667085]">查看分组与调度归属。</Text>}
       variant="minimal"
       scroll={false}
     >
@@ -72,7 +73,7 @@ export default function GroupsScreen() {
         renderItem={renderItem}
         keyExtractor={(item) => `${item.id}`}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={groupsQuery.isRefetching} onRefresh={() => void groupsQuery.refetch()} tintColor="#1d5f55" />}
+        refreshControl={<RefreshControl refreshing={groupsQuery.isRefetching} onRefresh={() => void groupsQuery.refetch()} tintColor={colors.primary} />}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={emptyState}
         ItemSeparatorComponent={() => <View className="h-4" />}
