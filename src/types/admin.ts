@@ -32,8 +32,17 @@ export type DashboardStats = {
   today_input_tokens?: number;
   today_output_tokens?: number;
   today_cache_read_tokens?: number;
+  today_cache_creation_tokens?: number;
+  today_actual_cost?: number;
   rpm: number;
   tpm: number;
+  average_duration_ms?: number;
+  avg_duration_ms?: number;
+  hourly_active_users?: number;
+  overload_accounts?: number;
+  ratelimit_accounts?: number;
+  stats_stale?: boolean;
+  stats_updated_at?: string | null;
 };
 
 export type TrendPoint = {
@@ -112,6 +121,7 @@ export type AdminUser = {
   role?: string;
   current_concurrency?: number;
   notes?: string | null;
+  last_active_at?: string | null;
   last_used_at?: string | null;
   created_at?: string;
   updated_at?: string;

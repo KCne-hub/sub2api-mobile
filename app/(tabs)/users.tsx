@@ -9,22 +9,10 @@ import { formatCompactNumber, formatTokenValue } from '@/src/lib/formatters';
 import { queryClient } from '@/src/lib/query-client';
 import { getUser, getUsageStats, listUserApiKeys, listUsers } from '@/src/services/admin';
 import { adminConfigState, hasAuthenticatedAdminSession } from '@/src/store/admin-config';
+import { colors, shadows } from '@/src/theme/colors';
 import type { AdminUser, UsageStats } from '@/src/types/admin';
 
 const { useSnapshot } = require('valtio/react');
-
-const colors = {
-  page: '#eef2ff',
-  card: '#ffffff',
-  mutedCard: '#eef2ff',
-  primary: '#7c3aed',
-  text: '#0f172a',
-  subtext: '#475569',
-  dangerBg: '#ffe4e6',
-  danger: '#be123c',
-  accentBg: '#fef3c7',
-  accentText: '#b45309',
-};
 
 type SortOrder = 'desc' | 'asc';
 type RangeKey = '24h' | '7d' | '30d';
@@ -102,12 +90,12 @@ function getErrorMessage(error: unknown) {
 }
 
 function MetricTile({ title, value, tone = 'default' }: { title: string; value: string; tone?: 'default' | 'accent' }) {
-  const backgroundColor = tone === 'accent' ? colors.accentBg : colors.mutedCard;
-  const valueColor = tone === 'accent' ? colors.accentText : colors.text;
+  const backgroundColor = tone === 'accent' ? colors.warningSoft : colors.surfaceSoft;
+  const valueColor = tone === 'accent' ? colors.warning : colors.text;
 
   return (
     <View style={{ flex: 1, minWidth: 0, backgroundColor, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 12 }}>
-      <Text style={{ fontSize: 11, color: colors.subtext }}>{title}</Text>
+      <Text style={{ fontSize: 11, color: colors.muted }}>{title}</Text>
       <Text numberOfLines={1} style={{ marginTop: 6, fontSize: 16, fontWeight: '800', color: valueColor }}>
         {value}
       </Text>
@@ -124,14 +112,14 @@ function UserCard({ user, usage }: { user: AdminUser; usage?: UsageStats }) {
   const totalRequests = Number(usage?.total_requests ?? 0);
 
   return (
-    <View style={{ backgroundColor: colors.card, borderRadius: 18, padding: 14 }}>
+    <View style={{ backgroundColor: colors.surface, borderRadius: 18, padding: 14, borderWidth: 1, borderColor: colors.border, boxShadow: shadows.subtle }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
         <View style={{ flex: 1 }}>
           <Text numberOfLines={1} style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>{user.email}</Text>
-          <Text style={{ marginTop: 4, fontSize: 12, color: colors.subtext }}>最近使用 {formatActivityTime(user.last_used_at || user.updated_at || user.created_at)}</Text>
+          <Text style={{ marginTop: 4, fontSize: 12, color: colors.muted }}>最近使用 {formatActivityTime(user.last_used_at || user.last_active_at || user.updated_at || user.created_at)}</Text>
         </View>
-        <View style={{ alignSelf: 'flex-start', backgroundColor: user.status === 'inactive' || user.status === 'disabled' ? '#cfc5b7' : colors.primary, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 }}>
-          <Text style={{ fontSize: 10, fontWeight: '700', color: '#fff' }}>{statusLabel}</Text>
+        <View style={{ alignSelf: 'flex-start', backgroundColor: user.status === 'inactive' || user.status === 'disabled' ? colors.slateSoft : colors.primarySoft, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 }}>
+          <Text style={{ fontSize: 10, fontWeight: '700', color: user.status === 'inactive' || user.status === 'disabled' ? colors.textSoft : colors.primaryDark }}>{statusLabel}</Text>
         </View>
       </View>
 
@@ -190,7 +178,7 @@ export default function UsersScreen() {
         <View style={{ marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 28, fontWeight: '700', color: colors.text }}>用户</Text>
-            <Text style={{ marginTop: 4, fontSize: 12, color: '#8a8072' }}>查看用户列表并进入详情页管理账号。</Text>
+            <Text style={{ marginTop: 4, fontSize: 12, color: colors.muted }}>查看用户列表并进入详情页管理账号。</Text>
           </View>
           <Pressable
             onPress={() => router.push('/users/create-user')}
@@ -208,28 +196,28 @@ export default function UsersScreen() {
         </View>
 
         <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-          <View style={{ flex: 1, backgroundColor: colors.card, borderRadius: 16, padding: 10 }}>
+          <View style={{ flex: 1, backgroundColor: colors.surface, borderRadius: 16, padding: 10, borderWidth: 1, borderColor: colors.border }}>
             <TextInput
               value={searchText}
               onChangeText={setSearchText}
               placeholder="搜索邮箱、用户名或备注"
-              placeholderTextColor="#9b9081"
-              style={{ backgroundColor: colors.mutedCard, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, color: colors.text }}
+              placeholderTextColor={colors.faint}
+              style={{ backgroundColor: colors.surfaceSoft, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, color: colors.text }}
             />
           </View>
           <Pressable
             onPress={() => setSortOrder((value) => (value === 'desc' ? 'asc' : 'desc'))}
-            style={{ backgroundColor: colors.card, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 14, minWidth: 92, alignItems: 'center' }}
+            style={{ backgroundColor: colors.surface, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 14, minWidth: 92, alignItems: 'center', borderWidth: 1, borderColor: colors.border }}
           >
-            <Text style={{ fontSize: 11, color: colors.subtext }}>时间</Text>
+            <Text style={{ fontSize: 11, color: colors.muted }}>时间</Text>
             <Text style={{ marginTop: 4, fontSize: 13, fontWeight: '700', color: colors.text }}>{sortOrder === 'desc' ? '倒序' : '正序'}</Text>
           </Pressable>
         </View>
 
         {!hasAccount ? (
-          <View style={{ marginTop: 10, backgroundColor: colors.card, borderRadius: 18, padding: 16 }}>
+          <View style={{ marginTop: 10, backgroundColor: colors.surface, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: colors.border }}>
             <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>未连接服务器</Text>
-            <Text style={{ marginTop: 8, fontSize: 14, lineHeight: 22, color: colors.subtext }}>请先到“服务器”页完成连接，再查看用户列表。</Text>
+            <Text style={{ marginTop: 8, fontSize: 14, lineHeight: 22, color: colors.muted }}>请先到“服务器”页完成连接，再查看用户列表。</Text>
             <Pressable
               style={{ marginTop: 14, alignSelf: 'flex-start', backgroundColor: colors.primary, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12 }}
               onPress={() => router.push('/settings')}
@@ -238,14 +226,14 @@ export default function UsersScreen() {
             </Pressable>
           </View>
         ) : usersQuery.isLoading ? (
-          <View style={{ marginTop: 10, backgroundColor: colors.card, borderRadius: 18, padding: 16 }}>
+          <View style={{ marginTop: 10, backgroundColor: colors.surface, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: colors.border }}>
             <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>正在加载用户</Text>
-            <Text style={{ marginTop: 8, fontSize: 14, lineHeight: 22, color: colors.subtext }}>已连接服务器，正在拉取用户列表。</Text>
+            <Text style={{ marginTop: 8, fontSize: 14, lineHeight: 22, color: colors.muted }}>已连接服务器，正在拉取用户列表。</Text>
           </View>
         ) : usersQuery.error ? (
-          <View style={{ marginTop: 10, backgroundColor: colors.card, borderRadius: 18, padding: 16 }}>
+          <View style={{ marginTop: 10, backgroundColor: colors.surface, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: colors.border }}>
             <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>加载失败</Text>
-            <View style={{ marginTop: 12, borderRadius: 14, backgroundColor: colors.dangerBg, paddingHorizontal: 14, paddingVertical: 12 }}>
+            <View style={{ marginTop: 12, borderRadius: 14, backgroundColor: colors.dangerSoft, paddingHorizontal: 14, paddingVertical: 12 }}>
               <Text style={{ color: colors.danger, fontSize: 14, lineHeight: 20 }}>{errorMessage}</Text>
             </View>
           </View>
@@ -255,12 +243,12 @@ export default function UsersScreen() {
             data={users}
             keyExtractor={(item) => `${item.id}`}
             showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={usersQuery.isRefetching} onRefresh={() => void usersQuery.refetch()} tintColor="#1d5f55" />}
+            refreshControl={<RefreshControl refreshing={usersQuery.isRefetching} onRefresh={() => void usersQuery.refetch()} tintColor={colors.primary} />}
             contentContainerStyle={{ paddingBottom: 8, gap: 12, flexGrow: users.length === 0 ? 1 : 0 }}
             ListEmptyComponent={
-              <View style={{ backgroundColor: colors.card, borderRadius: 18, padding: 16 }}>
+              <View style={{ backgroundColor: colors.surface, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: colors.border }}>
                 <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>暂无用户</Text>
-                <Text style={{ marginTop: 8, fontSize: 14, lineHeight: 22, color: colors.subtext }}>当前搜索条件下没有匹配结果，可以修改关键词后重试。</Text>
+                <Text style={{ marginTop: 8, fontSize: 14, lineHeight: 22, color: colors.muted }}>当前搜索条件下没有匹配结果，可以修改关键词后重试。</Text>
               </View>
             }
             renderItem={({ item }) => (

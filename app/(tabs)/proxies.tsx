@@ -8,6 +8,7 @@ import { ScreenShell } from '@/src/components/screen-shell';
 import { useDebouncedValue } from '@/src/hooks/use-debounced-value';
 import { formatDisplayTime } from '@/src/lib/formatters';
 import { listProxies } from '@/src/services/admin';
+import { colors } from '@/src/theme/colors';
 import type { AdminProxy } from '@/src/types/admin';
 
 type ProxyFilter = 'all' | 'active' | 'warning' | 'offline';
@@ -76,9 +77,9 @@ function getLocation(proxy: AdminProxy) {
 
 function MetricCell({ label, value }: { label: string; value: string }) {
   return (
-    <View className="flex-1 rounded-[16px] bg-[#eef2ff] px-3 py-3">
+    <View className="flex-1 rounded-[14px] bg-[#eef4f8] px-3 py-3">
       <Text className="text-[11px] font-semibold text-[#64748b]">{label}</Text>
-      <Text className="mt-1 text-sm font-black text-[#0f172a]">{value}</Text>
+      <Text className="mt-1 text-sm font-bold text-[#172033]">{value}</Text>
     </View>
   );
 }
@@ -129,21 +130,21 @@ export default function ProxiesScreen() {
 
   const listHeader = (
     <View className="pb-2">
-      <View className="rounded-[26px] bg-[#111827] p-3">
+      <View className="rounded-[20px] border border-[#d8e0ea] bg-white p-3">
         <View className="mb-3 flex-row gap-2">
-          <SummaryTile label="全部" value={summary.total} color="#4f46e5" />
-          <SummaryTile label="正常" value={summary.active} color="#16a34a" />
-          <SummaryTile label="关注" value={summary.warning} color="#f97316" />
-          <SummaryTile label="异常" value={summary.offline} color="#e11d48" />
+          <SummaryTile label="全部" value={summary.total} color={colors.primary} />
+          <SummaryTile label="正常" value={summary.active} color={colors.success} />
+          <SummaryTile label="关注" value={summary.warning} color={colors.warning} />
+          <SummaryTile label="异常" value={summary.offline} color={colors.danger} />
         </View>
 
-        <View className="flex-row items-center rounded-[18px] bg-white px-4 py-3">
-          <Search color="#6366f1" size={18} />
+        <View className="flex-row items-center rounded-[14px] bg-[#eef4f8] px-4 py-3">
+          <Search color={colors.primary} size={18} />
           <TextInput
             onChangeText={setSearchText}
             placeholder="搜索代理名称 / 主机 / 地区"
-            placeholderTextColor="#94a3b8"
-            className="ml-3 flex-1 text-base text-[#0f172a]"
+            placeholderTextColor={colors.faint}
+            className="ml-3 flex-1 text-base text-[#172033]"
           />
         </View>
 
@@ -159,7 +160,7 @@ export default function ProxiesScreen() {
               <Text
                 key={key}
                 onPress={() => setFilter(key)}
-                className={active ? 'rounded-full bg-[#22d3ee] px-3 py-2 text-xs font-black text-[#0f172a]' : 'rounded-full bg-[#1e293b] px-3 py-2 text-xs font-bold text-[#cbd5e1]'}
+                className={active ? 'rounded-full bg-[#2563eb] px-3 py-2 text-xs font-bold text-white' : 'rounded-full bg-[#eef4f8] px-3 py-2 text-xs font-semibold text-[#35445c]'}
               >
                 {label}
               </Text>
@@ -174,7 +175,7 @@ export default function ProxiesScreen() {
     <ScreenShell
       title="代理池"
       subtitle="查看代理延迟、质量评分、地区和绑定账号数量。"
-      titleAside={<Text className="rounded-full bg-[#22d3ee] px-2 py-1 text-[10px] font-black text-[#0f172a]">只读监控</Text>}
+      titleAside={<Text className="rounded-full bg-[#dbeafe] px-2 py-1 text-[10px] font-bold text-[#1d4ed8]">只读监控</Text>}
       variant="minimal"
       scroll={false}
       bottomInsetClassName="pb-6"
@@ -186,7 +187,7 @@ export default function ProxiesScreen() {
         data={filteredProxies}
         keyExtractor={(item) => `${item.id}`}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={proxiesQuery.isRefetching} onRefresh={() => void proxiesQuery.refetch()} tintColor="#7c3aed" />}
+        refreshControl={<RefreshControl refreshing={proxiesQuery.isRefetching} onRefresh={() => void proxiesQuery.refetch()} tintColor={colors.primary} />}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={
           <ListCard title="暂无代理" meta={errorMessage || '连上后这里会展示代理池状态。'} icon={Network} />
@@ -211,10 +212,10 @@ export default function ProxiesScreen() {
               <View className="gap-3">
                 <View className="flex-row items-center justify-between gap-3">
                   <View className="flex-row items-center gap-2">
-                    {isHealthy ? <ShieldCheck color="#22c55e" size={14} /> : <ShieldOff color="#f43f5e" size={14} />}
+                    {isHealthy ? <ShieldCheck color={colors.success} size={14} /> : <ShieldOff color={colors.danger} size={14} />}
                     <Text className="text-sm font-semibold text-[#475569]">状态：{item.status || '--'}</Text>
                   </View>
-                  <Text className="text-xs font-semibold text-[#6366f1]">{getLocation(item)}</Text>
+                  <Text className="text-xs font-semibold text-[#2563eb]">{getLocation(item)}</Text>
                 </View>
 
                 <View className="flex-row gap-2">

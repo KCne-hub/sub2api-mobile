@@ -2,6 +2,8 @@ import type { LucideIcon } from 'lucide-react-native';
 import { TrendingDown, TrendingUp } from 'lucide-react-native';
 import { Text, View } from 'react-native';
 
+import { colors } from '@/src/theme/colors';
+
 type StatCardProps = {
   label: string;
   value: string;
@@ -15,17 +17,17 @@ export function StatCard({ label, value, tone = 'light', trend, icon: Icon }: St
   const TrendIcon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : null;
 
   return (
-    <View className={dark ? 'rounded-[24px] bg-[#1d5f55] p-4' : 'rounded-[24px] bg-[#fbf8f2] p-4'}>
+    <View className={dark ? 'rounded-[20px] bg-[#243044] p-4' : 'rounded-[20px] bg-white p-4'}>
       <View className="flex-row items-center justify-between gap-3">
-        <Text className={dark ? 'text-xs uppercase tracking-[1.5px] text-[#d8efe7]' : 'text-xs uppercase tracking-[1.5px] text-[#7d7468]'}>
+        <Text className={dark ? 'text-xs font-semibold text-[#dbeafe]' : 'text-xs font-semibold text-[#667085]'}>
           {label}
         </Text>
         <View className="flex-row items-center gap-2">
-          {TrendIcon ? <TrendIcon color={dark ? '#d8efe7' : '#7d7468'} size={14} /> : null}
-          {Icon ? <Icon color={dark ? '#d8efe7' : '#7d7468'} size={14} /> : null}
+          {TrendIcon ? <TrendIcon color={dark ? '#dbeafe' : colors.muted} size={14} /> : null}
+          {Icon ? <Icon color={dark ? '#dbeafe' : colors.muted} size={14} /> : null}
         </View>
       </View>
-      <Text className={dark ? 'mt-3 text-3xl font-bold text-white' : 'mt-3 text-3xl font-bold text-[#16181a]'}>
+      <Text className={dark ? 'mt-3 text-3xl font-bold text-white' : 'mt-3 text-3xl font-bold text-[#172033]'}>
         {value}
       </Text>
     </View>

@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { getAdminSettings, getDashboardStats } from '@/src/services/admin';
 import { queryClient } from '@/src/lib/query-client';
 import { adminConfigState, hasAuthenticatedAdminSession, saveAdminConfig } from '@/src/store/admin-config';
+import { colors, shadows } from '@/src/theme/colors';
 
 const { useSnapshot } = require('valtio/react');
 
@@ -24,20 +25,6 @@ const schema = z
 
 type FormValues = z.infer<typeof schema>;
 type ConnectionState = 'idle' | 'checking' | 'error';
-
-const colors = {
-  page: '#0f172a',
-  card: '#ffffff',
-  mutedCard: '#eef2ff',
-  primary: '#7c3aed',
-  text: '#0f172a',
-  subtext: '#c7d2fe',
-  border: '#c4b5fd',
-  dangerBg: '#ffe4e6',
-  danger: '#be123c',
-  cyan: '#22d3ee',
-  pink: '#ec4899',
-};
 
 function getConnectionErrorMessage(error: unknown) {
   if (error instanceof Error && error.message) {
@@ -76,32 +63,35 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.page }}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20, paddingVertical: 24 }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20, paddingVertical: 28 }} keyboardShouldPersistTaps="handled">
         <View style={{ flex: 1, justifyContent: 'center', gap: 18 }}>
-          <View style={{ gap: 14 }}>
-            <View style={{ alignSelf: 'flex-start', borderRadius: 999, backgroundColor: '#312e81', paddingHorizontal: 12, paddingVertical: 7 }}>
-              <Text style={{ color: colors.cyan, fontSize: 11, fontWeight: '800', letterSpacing: 1.4 }}>SUB2API MOBILE</Text>
+          <View style={{ gap: 12 }}>
+            <View style={{ alignSelf: 'flex-start', borderRadius: 999, backgroundColor: colors.primarySoft, paddingHorizontal: 12, paddingVertical: 7 }}>
+              <Text style={{ color: colors.primaryDark, fontSize: 11, fontWeight: '700' }}>SUB2API MOBILE</Text>
             </View>
-            <Text style={{ fontSize: 40, lineHeight: 44, fontWeight: '900', color: '#f8fafc' }}>Admin{'\n'}Cockpit</Text>
-            <Text style={{ fontSize: 14, lineHeight: 22, color: colors.subtext }}>
-              连接你的 Sub2API 管理端，查看流量、账号、用户和代理池状态。
+            <Text style={{ fontSize: 34, lineHeight: 39, fontWeight: '800', color: colors.text }}>连接管理后台</Text>
+            <Text style={{ fontSize: 14, lineHeight: 22, color: colors.muted }}>
+              查看 Sub2API 的流量、账号、用户、分组和代理池状态。
             </Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <View style={{ height: 5, width: 60, borderRadius: 999, backgroundColor: colors.cyan }} />
-              <View style={{ height: 5, width: 34, borderRadius: 999, backgroundColor: colors.pink }} />
-              <View style={{ height: 5, width: 22, borderRadius: 999, backgroundColor: '#a3e635' }} />
+            <View style={{ flexDirection: 'row', gap: 8, paddingTop: 2 }}>
+              <View style={{ borderRadius: 999, backgroundColor: colors.tealSoft, paddingHorizontal: 10, paddingVertical: 6 }}>
+                <Text style={{ color: colors.teal, fontSize: 11, fontWeight: '700' }}>只连你的服务器</Text>
+              </View>
+              <View style={{ borderRadius: 999, backgroundColor: colors.slateSoft, paddingHorizontal: 10, paddingVertical: 6 }}>
+                <Text style={{ color: colors.textSoft, fontSize: 11, fontWeight: '700' }}>SecureStore 保存</Text>
+              </View>
             </View>
           </View>
 
-          <View style={{ backgroundColor: colors.card, borderRadius: 26, padding: 18, gap: 16 }}>
+          <View style={{ backgroundColor: colors.surface, borderRadius: 22, padding: 18, gap: 16, borderWidth: 1, borderColor: colors.border, boxShadow: shadows.card }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={{ fontSize: 18, fontWeight: '900', color: colors.text }}>连接服务器</Text>
-              <View style={{ borderRadius: 999, backgroundColor: '#f0f9ff', paddingHorizontal: 10, paddingVertical: 6 }}>
-                <Text style={{ color: '#0369a1', fontSize: 11, fontWeight: '800' }}>SecureStore</Text>
+              <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>服务器信息</Text>
+              <View style={{ borderRadius: 999, backgroundColor: colors.successSoft, paddingHorizontal: 10, paddingVertical: 6 }}>
+                <Text style={{ color: colors.success, fontSize: 11, fontWeight: '700' }}>本地加密</Text>
               </View>
             </View>
             <View>
-              <Text style={{ marginBottom: 8, fontSize: 12, fontWeight: '800', color: '#475569' }}>服务器地址</Text>
+              <Text style={{ marginBottom: 8, fontSize: 12, fontWeight: '700', color: colors.textSoft }}>服务器地址</Text>
               <Controller
                 control={control}
                 name="baseUrl"
@@ -116,17 +106,17 @@ export default function LoginScreen() {
                       onChange(text);
                     }}
                     placeholder="例如：https://api.example.com"
-                    placeholderTextColor="#9b9081"
+                    placeholderTextColor={colors.faint}
                     autoCapitalize="none"
                     autoCorrect={false}
-                    style={{ backgroundColor: colors.mutedCard, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 15, fontSize: 16, color: colors.text }}
+                    style={{ backgroundColor: colors.surfaceSoft, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 15, fontSize: 16, color: colors.text }}
                   />
                 )}
               />
             </View>
 
             <View>
-              <Text style={{ marginBottom: 8, fontSize: 12, fontWeight: '800', color: '#475569' }}>Admin Key</Text>
+              <Text style={{ marginBottom: 8, fontSize: 12, fontWeight: '700', color: colors.textSoft }}>Admin Key</Text>
               <Controller
                 control={control}
                 name="adminApiKey"
@@ -142,14 +132,14 @@ export default function LoginScreen() {
                         onChange(text);
                       }}
                       placeholder="admin-xxxxxxxx"
-                      placeholderTextColor="#9b9081"
+                      placeholderTextColor={colors.faint}
                       autoCapitalize="none"
                       autoCorrect={false}
                       secureTextEntry={!showAdminKey}
                       style={{
                         flex: 1,
-                        backgroundColor: colors.mutedCard,
-                        borderRadius: 18,
+                        backgroundColor: colors.surfaceSoft,
+                        borderRadius: 14,
                         paddingHorizontal: 16,
                         paddingVertical: 15,
                         fontSize: 16,
@@ -158,9 +148,9 @@ export default function LoginScreen() {
                     />
                     <Pressable
                       onPress={() => setShowAdminKey((value) => !value)}
-                      style={{ backgroundColor: '#ede9fe', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 11 }}
+                      style={{ backgroundColor: colors.primarySoft, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11 }}
                     >
-                      <Text style={{ fontSize: 12, fontWeight: '800', color: '#6d28d9' }}>{showAdminKey ? '隐藏' : '显示'}</Text>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primaryDark }}>{showAdminKey ? '隐藏' : '显示'}</Text>
                     </Pressable>
                   </View>
                 )}
@@ -168,19 +158,19 @@ export default function LoginScreen() {
             </View>
 
             {formState.errors.baseUrl || formState.errors.adminApiKey ? (
-              <View style={{ borderRadius: 14, backgroundColor: colors.dangerBg, paddingHorizontal: 14, paddingVertical: 12 }}>
+              <View style={{ borderRadius: 14, backgroundColor: colors.dangerSoft, paddingHorizontal: 14, paddingVertical: 12 }}>
                 <Text style={{ color: colors.danger, fontSize: 14 }}>{formState.errors.baseUrl?.message || formState.errors.adminApiKey?.message}</Text>
               </View>
             ) : null}
 
             {connectionMessage ? (
-              <View style={{ borderRadius: 14, backgroundColor: colors.dangerBg, paddingHorizontal: 14, paddingVertical: 12 }}>
+              <View style={{ borderRadius: 14, backgroundColor: colors.dangerSoft, paddingHorizontal: 14, paddingVertical: 12 }}>
                 <Text style={{ color: colors.danger, fontSize: 14 }}>{connectionMessage}</Text>
               </View>
             ) : null}
 
             <Pressable
-              style={{ backgroundColor: connectionState === 'checking' ? '#a78bfa' : colors.primary, borderRadius: 20, paddingVertical: 16, alignItems: 'center' }}
+              style={{ backgroundColor: connectionState === 'checking' ? '#93a4b7' : colors.primary, borderRadius: 15, paddingVertical: 16, alignItems: 'center' }}
               disabled={connectionState === 'checking'}
               onPress={handleSubmit(async (values) => {
                 setConnectionState('checking');
@@ -198,7 +188,7 @@ export default function LoginScreen() {
                 }
               })}
             >
-              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '900' }}>{connectionState === 'checking' ? '连接中...' : '进入控制台'}</Text>
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800' }}>{connectionState === 'checking' ? '连接中...' : '进入控制台'}</Text>
             </Pressable>
           </View>
         </View>
