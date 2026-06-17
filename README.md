@@ -16,13 +16,14 @@
 
 ## Overview
 
-sub2api-mobile brings the Sub2API admin workflow onto a phone: operational dashboards, account health, usage windows, proxy quality, user/API key management, and server status in one native-feeling interface.
+sub2api-mobile brings the Sub2API admin workflow onto a phone: operational dashboards, channel status, account health, usage windows, proxy quality, user/API key management, and server status in one native-feeling interface.
 
 It is designed for operators who need to glance at live usage, spot unhealthy accounts, refresh or test accounts, and switch between admin servers without opening the web dashboard.
 
 ## Highlights
 
 - **Live dashboard** with 24H / 7D / 30D / total ranges, token throughput, cost, latency, RPM/TPM, and account health summaries.
+- **Channel status monitoring** with availability windows, chat latency, endpoint ping, recent 60-check history, and one-tap manual detection.
 - **Account list aligned with the web admin view**, including group filters, status filters, request sorting, OAuth 5h / 7d windows, and API Key daily usage stats.
 - **Manual account testing** that follows the web admin flow: load available models, pick a default model, call the streaming test endpoint, and show live pass/fail feedback.
 - **Proxy pool management** with health filters, quality checks, latency/score views, region metadata, and manual detection support.
@@ -36,6 +37,7 @@ It is designed for operators who need to glance at live usage, spot unhealthy ac
   <img src="docs/screenshots/models.png" alt="Hot models" width="260" />
   <img src="docs/screenshots/accounts.png" alt="Account list" width="260" />
   <img src="docs/screenshots/proxies.png" alt="Proxy pool" width="260" />
+  <img src="docs/screenshots/channel-status.jpg" alt="Channel status monitor" width="260" />
 </p>
 
 ## Tech Stack
