@@ -39,7 +39,7 @@ function ScreenHeader({
             {titleAside}
           </View>
           {subtitle ? (
-            <Text numberOfLines={1} className="mt-1 text-[11px] leading-4 text-[#667085]">
+            <Text className="mt-1 text-[11px] leading-4 text-[#667085]">
               {subtitle}
             </Text>
           ) : null}

@@ -99,18 +99,18 @@ function formatProxyCheckFeedback(result?: ProxyQualityCheckResult) {
 
 function MetricCell({ label, value }: { label: string; value: string }) {
   return (
-    <View className="flex-1 rounded-[14px] bg-[#eef4f8] px-3 py-3">
+    <View className="flex-1 rounded-[12px] bg-[#eef4f8] px-3 py-3">
       <Text className="text-[11px] font-semibold text-[#64748b]">{label}</Text>
-      <Text className="mt-1 text-sm font-bold text-[#172033]">{value}</Text>
+      <Text numberOfLines={1} adjustsFontSizeToFit className="mt-1 text-sm font-bold text-[#172033]">{value}</Text>
     </View>
   );
 }
 
 function SummaryTile({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <View className="flex-1 rounded-[18px] px-3 py-3" style={{ backgroundColor: color }}>
+    <View className="flex-1 rounded-[14px] px-3 py-2.5" style={{ backgroundColor: color }}>
       <Text className="text-[11px] font-bold text-white/80">{label}</Text>
-      <Text className="mt-1 text-2xl font-black text-white">{value}</Text>
+      <Text className="mt-0.5 text-xl font-black text-white">{value}</Text>
     </View>
   );
 }
@@ -161,26 +161,27 @@ export default function ProxiesScreen() {
   const errorMessage = proxiesQuery.error instanceof Error ? proxiesQuery.error.message : '';
 
   const listHeader = (
-    <View className="pb-2">
-      <View className="rounded-[20px] border border-[#d8e0ea] bg-white p-3">
-        <View className="mb-3 flex-row gap-2">
+    <View className="pb-3">
+      <View className="rounded-[18px] border border-[#d8e0ea] bg-white p-3">
+        <View className="mb-2.5 flex-row gap-2">
           <SummaryTile label="全部" value={summary.total} color={colors.primary} />
           <SummaryTile label="正常" value={summary.active} color={colors.success} />
           <SummaryTile label="关注" value={summary.warning} color={colors.warning} />
           <SummaryTile label="异常" value={summary.offline} color={colors.danger} />
         </View>
 
-        <View className="flex-row items-center rounded-[14px] bg-[#eef4f8] px-4 py-3">
+        <View className="flex-row items-center rounded-[12px] bg-[#eef4f8] px-4 py-2.5">
           <Search color={colors.primary} size={18} />
           <TextInput
+            value={searchText}
             onChangeText={setSearchText}
             placeholder="搜索代理名称 / 主机 / 地区"
             placeholderTextColor={colors.faint}
-            className="ml-3 flex-1 text-base text-[#172033]"
+            className="ml-3 flex-1 text-sm text-[#172033]"
           />
         </View>
 
-        <View className="mt-3 flex-row flex-wrap gap-2">
+        <View className="mt-2.5 flex-row gap-2">
           {([
             ['all', `全部 ${summary.total}`],
             ['active', `正常 ${summary.active}`],
@@ -192,7 +193,9 @@ export default function ProxiesScreen() {
               <Text
                 key={key}
                 onPress={() => setFilter(key)}
-                className={active ? 'rounded-full bg-[#2563eb] px-3 py-2 text-xs font-bold text-white' : 'rounded-full bg-[#eef4f8] px-3 py-2 text-xs font-semibold text-[#35445c]'}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                className={active ? 'flex-1 rounded-full bg-[#2563eb] px-2.5 py-2 text-center text-xs font-bold text-white' : 'flex-1 rounded-full bg-[#eef4f8] px-2.5 py-2 text-center text-xs font-semibold text-[#35445c]'}
               >
                 {label}
               </Text>
@@ -210,12 +213,12 @@ export default function ProxiesScreen() {
       titleAside={<Text className="rounded-full bg-[#dbeafe] px-2 py-1 text-[10px] font-bold text-[#1d4ed8]">可手动检测</Text>}
       variant="minimal"
       scroll={false}
-      bottomInsetClassName="pb-6"
+      bottomInsetClassName="pb-5"
       contentGapClassName="mt-2 gap-2"
     >
       <FlatList
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 12, flexGrow: 1 }}
+        contentContainerStyle={{ paddingBottom: 16, flexGrow: 1 }}
         data={filteredProxies}
         keyExtractor={(item) => `${item.id}`}
         showsVerticalScrollIndicator={false}
@@ -244,12 +247,12 @@ export default function ProxiesScreen() {
               icon={Network}
             >
               <View className="gap-3">
-                <View className="flex-row items-center justify-between gap-3">
+                <View className="gap-2">
                   <View className="flex-row items-center gap-2">
                     {isHealthy ? <ShieldCheck color={colors.success} size={14} /> : <ShieldOff color={colors.danger} size={14} />}
-                    <Text className="text-sm font-semibold text-[#475569]">状态：{item.status || '--'}</Text>
+                    <Text numberOfLines={1} className="text-sm font-semibold text-[#475569]">状态：{item.status || '--'}</Text>
                   </View>
-                  <Text className="text-xs font-semibold text-[#2563eb]">{getLocation(item)}</Text>
+                  <Text numberOfLines={2} className="text-xs font-semibold leading-4 text-[#2563eb]">{getLocation(item)}</Text>
                 </View>
 
                 <View className="flex-row gap-2">
@@ -258,10 +261,10 @@ export default function ProxiesScreen() {
                   <MetricCell label="账号" value={`${item.account_count ?? 0}`} />
                 </View>
 
-                {item.quality_summary ? <Text className="text-xs font-medium text-[#64748b]">质量摘要：{item.quality_summary}</Text> : null}
-                {item.latency_message ? <Text className="text-xs font-medium text-[#be123c]">延迟信息：{item.latency_message}</Text> : null}
-                <View className="flex-row flex-wrap items-center justify-between gap-2">
-                  <Text className="text-xs font-medium text-[#64748b]">最近检测 {formatQualityChecked(item.quality_checked || item.updated_at)}</Text>
+                {item.quality_summary ? <Text className="text-xs font-medium leading-5 text-[#64748b]">质量摘要：{item.quality_summary}</Text> : null}
+                {item.latency_message ? <Text className="text-xs font-medium leading-5 text-[#be123c]">延迟信息：{item.latency_message}</Text> : null}
+                <View className="flex-row items-end justify-between gap-3">
+                  <Text className="flex-1 text-xs font-medium leading-5 text-[#64748b]">最近检测 {formatQualityChecked(item.quality_checked || item.updated_at)}</Text>
                   <Pressable
                     disabled={isCheckingCurrent}
                     onPress={(event) => {
@@ -280,7 +283,7 @@ export default function ProxiesScreen() {
                         },
                       });
                     }}
-                    className={isCheckingCurrent ? 'flex-row items-center gap-2 rounded-full bg-[#dbeafe] px-4 py-2 opacity-80' : 'flex-row items-center gap-2 rounded-full bg-[#243044] px-4 py-2'}
+                    className={isCheckingCurrent ? 'min-w-[92px] flex-row items-center justify-center gap-2 rounded-full bg-[#dbeafe] px-4 py-2 opacity-80' : 'min-w-[92px] flex-row items-center justify-center gap-2 rounded-full bg-[#243044] px-4 py-2'}
                   >
                     {isCheckingCurrent ? <ActivityIndicator color={colors.primary} size="small" /> : <Radar color="#ffffff" size={14} />}
                     <Text className={isCheckingCurrent ? 'text-xs font-bold text-[#1d4ed8]' : 'text-xs font-bold text-white'}>

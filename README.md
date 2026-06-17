@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="icons/ios/AppIcon.appiconset/icon-1024.png" alt="sub2api-mobile logo" width="96" />
+  <img src="icons/ios/AppIcon.appiconset/icon-1024.png" alt="KCNE Console logo" width="96" />
 </p>
 
-<h1 align="center">sub2api-mobile</h1>
+<h1 align="center">KCNE 控制台</h1>
 
 <p align="center">
-  Sub2API 移动端管理控制台 / A polished mobile admin console for Sub2API
+  基于 sub2api-mobile 二次开发的 Sub2API 移动端管理控制台 / A customized Sub2API mobile admin console based on sub2api-mobile
 </p>
 
 <p align="center">
@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/showcase.png" alt="sub2api-mobile showcase" width="920" />
+  <img src="docs/screenshots/showcase.png" alt="KCNE Console showcase" width="920" />
 </p>
 
 > Screenshots are captured from a real Android device and redacted before publishing.
@@ -24,7 +24,9 @@
 
 ### 项目简介
 
-sub2api-mobile 把 Sub2API 管理后台搬到手机上，提供运行概览、渠道状态、账号健康、额度窗口、代理池质量、用户 / API Key 管理和服务器配置等能力。
+KCNE 控制台是基于 `sub2api-mobile` 的二次开发版本，把 Sub2API 管理后台搬到手机上，并针对 KCNE 的移动管理工作流做了界面和功能增强。它提供运行概览、渠道状态、账号健康、额度窗口、代理池质量、用户 / API Key 管理和服务器配置等能力。
+
+本仓库是面向 KCNE 使用场景维护的 fork / 二开版本，上游项目仍归原作者所有。
 
 它适合需要随时查看服务状态的运营者：快速扫一眼用量、定位异常账号、手动检测账号或渠道，并在多个管理服务器之间切换，不必频繁打开网页后台。
 
@@ -145,7 +147,9 @@ server/              本地 Express 代理服务
 
 ### Overview
 
-sub2api-mobile brings the Sub2API admin workflow onto a phone: operational dashboards, channel status, account health, usage windows, proxy quality, user/API key management, and server status in one native-feeling interface.
+KCNE Console is a customized fork of `sub2api-mobile`. It brings the Sub2API admin workflow onto a phone and adds UI and workflow refinements for KCNE operations: operational dashboards, channel status, account health, usage windows, proxy quality, user/API key management, and server status in one native-feeling interface.
+
+This repository is a KCNE-oriented second-development fork. The upstream project remains owned by its original author.
 
 It is designed for operators who need to glance at live usage, spot unhealthy accounts, refresh or test accounts and channels, and switch between admin servers without opening the web dashboard.
 

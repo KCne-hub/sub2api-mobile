@@ -1,7 +1,7 @@
 ﻿import { router } from 'expo-router';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
-import { Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
+import { Linking, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState } from 'react';
 import { z } from 'zod';
@@ -12,6 +12,8 @@ import { adminConfigState, removeAdminAccount, saveAdminConfig, switchAdminAccou
 import { colors, shadows } from '@/src/theme/colors';
 
 const { useSnapshot } = require('valtio/react');
+
+const GITHUB_REPOSITORY_URL = 'https://github.com/KCne-hub/sub2api-mobile';
 
 const schema = z
   .object({
@@ -298,6 +300,17 @@ export default function SettingsScreen() {
               <Text style={{ marginTop: 8, fontSize: 13, lineHeight: 21, color: colors.muted }}>点击右上角 + 添加服务器，保存成功后会自动切换并进入概览。</Text>
             </View>
           ) : null}
+        </View>
+
+        <View style={{ backgroundColor: colors.surface, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: colors.border, boxShadow: shadows.subtle }}>
+          <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>关于项目</Text>
+          <Text style={{ marginTop: 8, fontSize: 13, lineHeight: 21, color: colors.muted }}>这是基于 sub2api-mobile 的二次开发版本，适配 KCNE 的移动管理工作流。</Text>
+          <Pressable
+            onPress={() => void Linking.openURL(GITHUB_REPOSITORY_URL)}
+            style={{ marginTop: 14, alignSelf: 'flex-start', backgroundColor: colors.slate, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12 }}
+          >
+            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>GitHub 仓库</Text>
+          </Pressable>
         </View>
       </ScrollView>
     </SafeAreaView>
