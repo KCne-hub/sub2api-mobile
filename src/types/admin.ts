@@ -307,6 +307,60 @@ export type AdminAccount = {
   extra?: Record<string, string | number | boolean | null>;
 };
 
+export type ChannelMonitorStatus = 'operational' | 'degraded' | 'failed' | 'error' | string;
+
+export type ChannelMonitorHistoryItem = {
+  id: number;
+  model: string;
+  status: ChannelMonitorStatus;
+  latency_ms?: number | null;
+  ping_latency_ms?: number | null;
+  message?: string | null;
+  checked_at?: string | null;
+};
+
+export type ChannelMonitor = {
+  id: number;
+  name: string;
+  provider: string;
+  api_mode?: string;
+  endpoint?: string;
+  api_key_masked?: string;
+  api_key_decrypt_failed?: boolean;
+  primary_model: string;
+  extra_models?: string[];
+  group_name?: string | null;
+  enabled?: boolean;
+  interval_seconds?: number;
+  jitter_seconds?: number;
+  last_checked_at?: string | null;
+  created_by?: number;
+  created_at?: string;
+  updated_at?: string;
+  primary_status?: ChannelMonitorStatus;
+  primary_latency_ms?: number | null;
+  availability_7d?: number | null;
+  availability_15d?: number | null;
+  availability_30d?: number | null;
+  avg_latency_7d_ms?: number | null;
+  extra_models_status?: Array<{
+    model: string;
+    status?: ChannelMonitorStatus;
+    latency_ms?: number | null;
+    ping_latency_ms?: number | null;
+    message?: string | null;
+  }>;
+  template_id?: number | null;
+  extra_headers?: Record<string, string>;
+  body_override_mode?: string;
+  body_override?: Record<string, unknown> | null;
+  timeline?: ChannelMonitorHistoryItem[];
+};
+
+export type ChannelMonitorRunResult = {
+  results?: ChannelMonitorHistoryItem[];
+};
+
 export type ProxyQualityStatus = 'excellent' | 'good' | 'warn' | 'poor' | 'failed' | string;
 
 export type AdminProxy = {

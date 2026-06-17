@@ -1,5 +1,6 @@
-﻿import { useQuery } from '@tanstack/react-query';
+﻿import { useQueries, useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
+import { Bot, Globe2, RefreshCw, Zap } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,13 +9,15 @@ import { BarChartCard } from '@/src/components/bar-chart-card';
 import { formatLocalDate, formatTokenValue } from '@/src/lib/formatters';
 import { DonutChartCard } from '@/src/components/donut-chart-card';
 import { LineTrendChart } from '@/src/components/line-trend-chart';
-import { getAdminSettings, getDashboardModels, getDashboardStats, getDashboardTrend, getUsageStats, listAccounts } from '@/src/services/admin';
+import { getAdminSettings, getChannelMonitorHistory, getDashboardModels, getDashboardStats, getDashboardTrend, getUsageStats, listAccounts, listChannelMonitors, runChannelMonitor } from '@/src/services/admin';
 import { adminConfigState, hasAuthenticatedAdminSession } from '@/src/store/admin-config';
 import { chartColors, colors } from '@/src/theme/colors';
+import type { ChannelMonitor, ChannelMonitorHistoryItem } from '@/src/types/admin';
 
 const { useSnapshot } = require('valtio/react');
 
 type RangeKey = '24h' | '7d' | '30d' | 'total';
+type ChannelWindowKey = '7d' | '15d' | '30d';
 
 const RANGE_OPTIONS: Array<{ key: RangeKey; label: string }> = [
   { key: '24h', label: '24H' },
@@ -29,6 +32,12 @@ const RANGE_TITLE_MAP: Record<RangeKey, string> = {
   '30d': '30D',
   total: '总数据',
 };
+
+const CHANNEL_WINDOW_OPTIONS: Array<{ key: ChannelWindowKey; label: string; days: number }> = [
+  { key: '7d', label: '7天', days: 7 },
+  { key: '15d', label: '15天', days: 15 },
+  { key: '30d', label: '30天', days: 30 },
+];
 
 function hasAccountError(account: { status?: string; credentials_status?: string | Record<string, unknown> | null }) {
   const status = `${account.status ?? ''}`.toLowerCase();
@@ -64,12 +73,6 @@ function hasAccountRateLimited(account: {
     const resetTime = new Date(resetAt).getTime();
     return !Number.isNaN(resetTime) && resetTime > now;
   });
-}
-
-function isAccountPaused(account: { status?: string; schedulable?: boolean }) {
-  const normalizedStatus = `${account.status ?? ''}`.toLowerCase();
-
-  return ['inactive', 'disabled', 'paused', 'stop', 'stopped'].includes(normalizedStatus) || account.schedulable === false;
 }
 
 function getDateRange(rangeKey: RangeKey) {
@@ -190,170 +193,223 @@ function StatCard({ title, value, detail }: { title: string; value: string; deta
   );
 }
 
-type ChannelStatus = {
-  key: string;
-  name: string;
-  platform?: string;
-  total: number;
-  available: number;
-  busy: number;
-  limited: number;
-  paused: number;
-  error: number;
-  latestUsedAt?: string | null;
-};
-
-function getAccountChannels(account: {
-  platform?: string;
-  type?: string;
-  groups?: Array<{ id: number; name?: string | null; platform?: string | null }>;
-}) {
-  const groups = account.groups ?? [];
-
-  if (groups.length > 0) {
-    return groups.map((group) => ({
-      key: `group:${group.id}`,
-      name: group.name?.trim() || `渠道 #${group.id}`,
-      platform: group.platform?.trim() || account.platform,
-    }));
+function getProviderLabel(provider?: string) {
+  switch ((provider ?? '').toLowerCase()) {
+    case 'openai':
+      return 'OpenAI';
+    case 'anthropic':
+      return 'Anthropic';
+    case 'gemini':
+      return 'Gemini';
+    default:
+      return provider || 'Unknown';
   }
+}
 
-  const platform = account.platform || 'unknown';
-  const type = account.type || 'account';
+function getStatusLabel(status?: string) {
+  switch ((status ?? '').toLowerCase()) {
+    case 'operational':
+      return '正常';
+    case 'degraded':
+      return '波动';
+    case 'failed':
+      return '失败';
+    case 'error':
+      return '异常';
+    default:
+      return status || '未知';
+  }
+}
 
-  return [
-    {
-      key: `fallback:${platform}:${type}`,
-      name: `${platform} · ${type}`,
-      platform,
-    },
+function getStatusStyle(status?: string) {
+  switch ((status ?? '').toLowerCase()) {
+    case 'operational':
+      return { text: colors.success, bg: colors.successSoft, bar: '#10b981', height: 1 };
+    case 'degraded':
+      return { text: colors.warning, bg: colors.warningSoft, bar: chartColors.amber, height: 0.72 };
+    case 'failed':
+    case 'error':
+      return { text: colors.danger, bg: colors.dangerSoft, bar: chartColors.rose, height: 0.42 };
+    default:
+      return { text: colors.muted, bg: colors.surfaceSoft, bar: colors.borderStrong, height: 0.26 };
+  }
+}
+
+function getProviderAccent(provider?: string) {
+  switch ((provider ?? '').toLowerCase()) {
+    case 'openai':
+      return { fg: '#059669', bg: '#d1fae5' };
+    case 'anthropic':
+      return { fg: '#c2410c', bg: '#ffedd5' };
+    case 'gemini':
+      return { fg: '#0284c7', bg: '#e0f2fe' };
+    default:
+      return { fg: colors.textSoft, bg: colors.surfaceSoft };
+  }
+}
+
+function formatLatencyValue(value?: number | null) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return '--';
+  return String(Math.round(value));
+}
+
+function formatAvailabilityValue(value?: number | null) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return '--';
+  return `${value.toFixed(2)}%`;
+}
+
+function getAvailabilityValue(monitor: ChannelMonitor, windowKey: ChannelWindowKey) {
+  if (windowKey === '7d') return monitor.availability_7d ?? null;
+  if (windowKey === '15d') return monitor.availability_15d ?? null;
+  return monitor.availability_30d ?? null;
+}
+
+function getLatestHistory(monitor: ChannelMonitor, history: ChannelMonitorHistoryItem[]) {
+  return history.find((item) => item.model === monitor.primary_model) ?? history[0];
+}
+
+function MetricBox({
+  icon,
+  label,
+  value,
+  unit,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  unit: string;
+}) {
+  return (
+    <View style={{ flex: 1, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.72)', borderWidth: 1, borderColor: colors.border, padding: 12 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        {icon}
+        <Text style={{ fontSize: 10, fontWeight: '800', color: colors.faint }}>{label}</Text>
+      </View>
+      <Text style={{ marginTop: 8, fontSize: 19, fontWeight: '800', color: colors.text, fontVariant: ['tabular-nums'] }}>
+        {value}
+        <Text style={{ fontSize: 10, color: colors.muted }}> {unit}</Text>
+      </Text>
+    </View>
+  );
+}
+
+function ChannelTimeline({ history }: { history: ChannelMonitorHistoryItem[] }) {
+  const visibleHistory = history.slice(0, 60).reverse();
+  const placeholders = Array.from({ length: Math.max(0, 60 - visibleHistory.length) });
+  const bars = [
+    ...placeholders.map((_, index) => ({ key: `empty-${index}`, status: 'empty', title: '' })),
+    ...visibleHistory.map((item) => ({
+      key: String(item.id),
+      status: item.status,
+      title: `${formatTime(item.checked_at)} · ${getStatusLabel(item.status)} · ${formatLatencyValue(item.latency_ms)}ms`,
+    })),
   ];
-}
-
-function getNewerTime(left?: string | null, right?: string | null) {
-  if (!left) return right;
-  if (!right) return left;
-
-  const leftTime = new Date(left).getTime();
-  const rightTime = new Date(right).getTime();
-
-  if (Number.isNaN(leftTime)) return right;
-  if (Number.isNaN(rightTime)) return left;
-
-  return rightTime > leftTime ? right : left;
-}
-
-function buildChannelStatuses(accounts: Array<{
-  platform?: string;
-  type?: string;
-  status?: string;
-  schedulable?: boolean;
-  current_concurrency?: number;
-  credentials_status?: string | Record<string, unknown> | null;
-  rate_limit_reset_at?: string | null;
-  last_used_at?: string | null;
-  updated_at?: string | null;
-  groups?: Array<{ id: number; name?: string | null; platform?: string | null }>;
-  extra?: Record<string, unknown>;
-}>) {
-  const channels = new Map<string, ChannelStatus>();
-
-  accounts.forEach((account) => {
-    const hasError = hasAccountError(account);
-    const isLimited = hasAccountRateLimited(account);
-    const paused = isAccountPaused(account);
-    const busy = !hasError && !isLimited && !paused && (account.current_concurrency ?? 0) > 0;
-    const available = !hasError && !isLimited && !paused;
-
-    getAccountChannels(account).forEach((channel) => {
-      const current =
-        channels.get(channel.key) ??
-        {
-          key: channel.key,
-          name: channel.name,
-          platform: channel.platform,
-          total: 0,
-          available: 0,
-          busy: 0,
-          limited: 0,
-          paused: 0,
-          error: 0,
-          latestUsedAt: null,
-        };
-
-      current.total += 1;
-      current.available += available ? 1 : 0;
-      current.busy += busy ? 1 : 0;
-      current.limited += isLimited ? 1 : 0;
-      current.paused += paused ? 1 : 0;
-      current.error += hasError ? 1 : 0;
-      current.latestUsedAt = getNewerTime(current.latestUsedAt, account.last_used_at || account.updated_at);
-      channels.set(channel.key, current);
-    });
-  });
-
-  return Array.from(channels.values()).sort((left, right) => {
-    const leftRisk = left.error * 4 + left.limited * 3 + left.paused * 2 + left.busy;
-    const rightRisk = right.error * 4 + right.limited * 3 + right.paused * 2 + right.busy;
-
-    if (leftRisk !== rightRisk) {
-      return rightRisk - leftRisk;
-    }
-
-    return right.total - left.total;
-  });
-}
-
-function ChannelStatusRow({ channel }: { channel: ChannelStatus }) {
-  const availablePercent = channel.total > 0 ? Math.round((channel.available / channel.total) * 100) : 0;
-  const issueCount = channel.error + channel.limited + channel.paused;
-  const badgeColor = channel.error > 0 ? colors.danger : issueCount > 0 ? colors.warning : colors.success;
-  const badgeBg = channel.error > 0 ? colors.dangerSoft : issueCount > 0 ? colors.warningSoft : colors.successSoft;
-  const segments = [
-    { key: 'available', value: channel.available, color: colors.success },
-    { key: 'busy', value: channel.busy, color: chartColors.amber },
-    { key: 'limited', value: channel.limited + channel.paused, color: chartColors.gray },
-    { key: 'error', value: channel.error, color: chartColors.rose },
-  ].filter((segment) => segment.value > 0);
 
   return (
-    <View style={{ borderRadius: 16, backgroundColor: colors.surfaceSoft, padding: 12 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
-        <View style={{ flex: 1 }}>
-          <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>
-            {channel.name}
-          </Text>
-          <Text numberOfLines={1} style={{ marginTop: 4, fontSize: 11, color: colors.muted }}>
-            {channel.platform ? `${channel.platform} · ` : ''}最近使用 {formatTime(channel.latestUsedAt)}
-          </Text>
-        </View>
-        <View style={{ borderRadius: 999, backgroundColor: badgeBg, paddingHorizontal: 10, paddingVertical: 5 }}>
-          <Text style={{ fontSize: 11, fontWeight: '700', color: badgeColor }}>{availablePercent}% 可用</Text>
-        </View>
+    <View style={{ marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+        <Text style={{ fontSize: 10, fontWeight: '800', color: colors.faint }}>近 60 次记录</Text>
+        <Text style={{ fontSize: 10, fontWeight: '800', color: colors.faint }}>NOW</Text>
       </View>
-
-      <View style={{ marginTop: 10, height: 10, flexDirection: 'row', overflow: 'hidden', borderRadius: 999, backgroundColor: colors.border }}>
-        {segments.length > 0 ? (
-          segments.map((segment) => (
+      <View style={{ height: 24, flexDirection: 'row', alignItems: 'flex-end', gap: 2 }}>
+        {bars.map((bar) => {
+          const style = getStatusStyle(bar.status);
+          return (
             <View
-              key={segment.key}
+              key={bar.key}
               style={{
-                flex: segment.value,
-                backgroundColor: segment.color,
+                flex: 1,
+                minWidth: 3,
+                height: Math.max(6, Math.round(24 * style.height)),
+                borderRadius: 3,
+                backgroundColor: style.bar,
               }}
             />
-          ))
-        ) : (
-          <View style={{ flex: 1, backgroundColor: colors.borderStrong }} />
-        )}
+          );
+        })}
+      </View>
+      <View style={{ marginTop: 4, flexDirection: 'row', justifyContent: 'space-between' }}>
+        <Text style={{ fontSize: 9, fontWeight: '700', color: colors.faint }}>PAST</Text>
+        <Text style={{ fontSize: 9, fontWeight: '700', color: colors.faint }}>NOW</Text>
+      </View>
+    </View>
+  );
+}
+
+function ChannelMonitorCard({
+  monitor,
+  history,
+  windowKey,
+  running,
+  onRun,
+}: {
+  monitor: ChannelMonitor;
+  history: ChannelMonitorHistoryItem[];
+  windowKey: ChannelWindowKey;
+  running: boolean;
+  onRun: () => void;
+}) {
+  const latest = getLatestHistory(monitor, history);
+  const status = monitor.primary_status || latest?.status;
+  const statusStyle = getStatusStyle(status);
+  const providerAccent = getProviderAccent(monitor.provider);
+  const availability = getAvailabilityValue(monitor, windowKey);
+  const latency = latest?.latency_ms ?? monitor.primary_latency_ms;
+  const pingLatency = latest?.ping_latency_ms;
+
+  return (
+    <View style={{ borderRadius: 20, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, padding: 16, boxShadow: '0 14px 28px rgba(15, 23, 42, 0.08)' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+        <View style={{ flexDirection: 'row', flex: 1, gap: 11 }}>
+          <View style={{ width: 38, height: 38, borderRadius: 13, backgroundColor: providerAccent.bg, alignItems: 'center', justifyContent: 'center' }}>
+            <Bot color={providerAccent.fg} size={20} />
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text numberOfLines={1} style={{ fontSize: 17, fontWeight: '800', color: colors.text }}>
+              {monitor.name}
+            </Text>
+            <View style={{ marginTop: 5, flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <View style={{ borderRadius: 7, backgroundColor: providerAccent.bg, paddingHorizontal: 7, paddingVertical: 3 }}>
+                <Text style={{ fontSize: 10, fontWeight: '800', color: providerAccent.fg }}>{getProviderLabel(monitor.provider)}</Text>
+              </View>
+              <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 11, color: colors.muted }}>
+                {monitor.primary_model}
+              </Text>
+            </View>
+          </View>
+        </View>
+        <View style={{ alignItems: 'flex-end', gap: 8 }}>
+          <View style={{ borderRadius: 999, backgroundColor: statusStyle.bg, paddingHorizontal: 10, paddingVertical: 6 }}>
+            <Text style={{ fontSize: 12, fontWeight: '800', color: statusStyle.text }}>{getStatusLabel(status)}</Text>
+          </View>
+          <Pressable
+            onPress={onRun}
+            disabled={running}
+            style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: colors.surfaceSoft, alignItems: 'center', justifyContent: 'center', opacity: running ? 0.55 : 1 }}
+          >
+            <RefreshCw color={colors.textSoft} size={17} />
+          </Pressable>
+        </View>
       </View>
 
-      <View style={{ marginTop: 10, flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-        <Text style={{ fontSize: 11, color: colors.success }}>可用 {formatNumber(channel.available)}</Text>
-        <Text style={{ fontSize: 11, color: colors.warning }}>繁忙 {formatNumber(channel.busy)}</Text>
-        <Text style={{ fontSize: 11, color: colors.muted }}>限流/暂停 {formatNumber(channel.limited + channel.paused)}</Text>
-        <Text style={{ fontSize: 11, color: colors.danger }}>异常 {formatNumber(channel.error)}</Text>
+      <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+        <MetricBox icon={<Zap color={colors.faint} size={13} />} label="对话延迟" value={formatLatencyValue(latency)} unit="ms" />
+        <MetricBox icon={<Globe2 color={colors.faint} size={13} />} label="端点 PING" value={formatLatencyValue(pingLatency)} unit="ms" />
       </View>
+
+      <View style={{ marginTop: 16, paddingTop: 13, borderTopWidth: 1, borderTopColor: colors.border }}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 10 }}>
+          <View>
+            <Text style={{ fontSize: 11, color: colors.muted }}>可用性 · {CHANNEL_WINDOW_OPTIONS.find((item) => item.key === windowKey)?.label}</Text>
+            <Text style={{ marginTop: 6, fontSize: 11, color: colors.faint }}>最近更新 {formatTime(latest?.checked_at ?? monitor.last_checked_at)}</Text>
+          </View>
+          <Text style={{ fontSize: 31, lineHeight: 34, fontWeight: '900', color: typeof availability === 'number' ? statusStyle.text : colors.faint, fontVariant: ['tabular-nums'] }}>
+            {formatAvailabilityValue(availability)}
+          </Text>
+        </View>
+      </View>
+
+      <ChannelTimeline history={history} />
     </View>
   );
 }
@@ -362,6 +418,8 @@ export default function MonitorScreen() {
   const config = useSnapshot(adminConfigState);
   const hasAccount = hasAuthenticatedAdminSession(config);
   const [rangeKey, setRangeKey] = useState<RangeKey>('7d');
+  const [channelWindow, setChannelWindow] = useState<ChannelWindowKey>('7d');
+  const [runningMonitorId, setRunningMonitorId] = useState<number | null>(null);
   const range = useMemo(() => getDateRange(rangeKey), [rangeKey]);
   const hasRange = Boolean(range);
 
@@ -380,6 +438,12 @@ export default function MonitorScreen() {
   const accountsQuery = useQuery({
     queryKey: ['monitor-accounts'],
     queryFn: () => listAccounts(''),
+    enabled: hasAccount,
+    staleTime: 60_000,
+  });
+  const channelMonitorsQuery = useQuery({
+    queryKey: ['channel-monitors'],
+    queryFn: listChannelMonitors,
     enabled: hasAccount,
     staleTime: 60_000,
   });
@@ -422,15 +486,43 @@ export default function MonitorScreen() {
     staleTime: 60_000,
     placeholderData: (previousData) => previousData,
   });
+  const channelMonitors = useMemo(() => channelMonitorsQuery.data?.items ?? [], [channelMonitorsQuery.data?.items]);
+  const channelHistoryQueries = useQueries({
+    queries: channelMonitors.map((monitor) => ({
+      queryKey: ['channel-monitor-history', monitor.id],
+      queryFn: () => getChannelMonitorHistory(monitor.id),
+      enabled: hasAccount,
+      staleTime: 60_000,
+    })),
+  });
 
   function refetchAll() {
     statsQuery.refetch();
     settingsQuery.refetch();
     accountsQuery.refetch();
+    channelMonitorsQuery.refetch();
+    channelHistoryQueries.forEach((query) => query.refetch());
     if (hasRange) {
       rangeUsageQuery.refetch();
       trendQuery.refetch();
       modelsQuery.refetch();
+    }
+  }
+
+  async function handleRunChannelMonitor(monitorId: number) {
+    if (runningMonitorId !== null) return;
+
+    setRunningMonitorId(monitorId);
+    try {
+      await runChannelMonitor(monitorId);
+      await Promise.all([
+        channelMonitorsQuery.refetch(),
+        ...channelHistoryQueries
+          .filter((query, index) => channelMonitors[index]?.id === monitorId)
+          .map((query) => query.refetch()),
+      ]);
+    } finally {
+      setRunningMonitorId(null);
     }
   }
 
@@ -439,27 +531,24 @@ export default function MonitorScreen() {
   const accounts = accountsQuery.data?.items ?? [];
   const trend = trendQuery.data?.trend ?? [];
   const topModels = (modelsQuery.data?.models ?? []).slice(0, 5);
-  const errorMessage = getErrorMessage(statsQuery.error ?? settingsQuery.error ?? accountsQuery.error ?? rangeUsageQuery.error ?? trendQuery.error ?? modelsQuery.error);
+  const errorMessage = getErrorMessage(statsQuery.error ?? settingsQuery.error ?? accountsQuery.error ?? channelMonitorsQuery.error ?? rangeUsageQuery.error ?? trendQuery.error ?? modelsQuery.error);
   const currentPageErrorAccounts = accounts.filter(hasAccountError).length;
   const currentPageLimitedAccounts = accounts.filter((item) => hasAccountRateLimited(item)).length;
   const currentPageBusyAccounts = accounts.filter((item) => {
     if (hasAccountError(item) || hasAccountRateLimited(item)) return false;
     return (item.current_concurrency ?? 0) > 0;
   }).length;
-  const channelStatuses = useMemo(() => buildChannelStatuses(accounts), [accounts]);
-  const visibleChannelStatuses = channelStatuses.slice(0, 6);
-  const channelSummary = useMemo(
-    () =>
-      channelStatuses.reduce(
-        (summary, channel) => ({
-          total: summary.total + channel.total,
-          available: summary.available + channel.available,
-          issue: summary.issue + channel.error + channel.limited + channel.paused,
-        }),
-        { total: 0, available: 0, issue: 0 }
-      ),
-    [channelStatuses]
-  );
+  const channelHistoryById = useMemo(() => {
+    const result: Record<number, ChannelMonitorHistoryItem[]> = {};
+    channelHistoryQueries.forEach((query, index) => {
+      const monitor = channelMonitors[index];
+      if (monitor) {
+        result[monitor.id] = query.data?.items ?? [];
+      }
+    });
+    return result;
+  }, [channelHistoryQueries, channelMonitors]);
+  const overallChannelStatus = channelMonitors.some((monitor) => (monitor.primary_status ?? '').toLowerCase() !== 'operational') ? 'degraded' : 'operational';
   const totalAccounts = stats?.total_accounts ?? accountsQuery.data?.total ?? accounts.length;
   const aggregatedErrorAccounts = stats?.error_accounts ?? 0;
   const errorAccounts = Math.max(aggregatedErrorAccounts, currentPageErrorAccounts);
@@ -495,7 +584,7 @@ export default function MonitorScreen() {
   );
   const rangeTitle = RANGE_TITLE_MAP[rangeKey];
   const isLoading = statsQuery.isLoading || settingsQuery.isLoading || accountsQuery.isLoading;
-  const hasError = Boolean(statsQuery.error || settingsQuery.error || accountsQuery.error || rangeUsageQuery.error || trendQuery.error || modelsQuery.error);
+  const hasError = Boolean(statsQuery.error || settingsQuery.error || accountsQuery.error || channelMonitorsQuery.error || rangeUsageQuery.error || trendQuery.error || modelsQuery.error);
 
   const throughputPoints = useMemo(
     () => trend.map((item) => ({ label: getPointLabel(item.date, rangeKey), value: item.total_tokens })),
@@ -514,7 +603,7 @@ export default function MonitorScreen() {
   const totalCacheReadTokens = rangeKey === 'total'
     ? pickNumber(stats?.total_cache_read_tokens, 0) ?? 0
     : trend.reduce((sum, item) => sum + item.cache_read_tokens, 0);
-  const isRefreshing = statsQuery.isRefetching || settingsQuery.isRefetching || accountsQuery.isRefetching || rangeUsageQuery.isRefetching || trendQuery.isRefetching || modelsQuery.isRefetching;
+  const isRefreshing = statsQuery.isRefetching || settingsQuery.isRefetching || accountsQuery.isRefetching || channelMonitorsQuery.isRefetching || channelHistoryQueries.some((query) => query.isRefetching) || rangeUsageQuery.isRefetching || trendQuery.isRefetching || modelsQuery.isRefetching;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.page }}>
@@ -636,42 +725,61 @@ export default function MonitorScreen() {
 
             <Section
               title="渠道状态"
-              subtitle="按分组/平台聚合账号可调度情况"
+              subtitle="与网页 /monitor 对齐的渠道可用性、延迟和最近记录"
               right={(
-                <Pressable
-                  style={{ alignSelf: 'flex-start', backgroundColor: colors.surfaceSoft, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 }}
-                  onPress={() => router.push('/accounts/overview')}
-                >
-                  <Text style={{ color: colors.textSoft, fontSize: 12, fontWeight: '700' }}>查看账号</Text>
-                </Pressable>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={{ borderRadius: 999, backgroundColor: getStatusStyle(overallChannelStatus).bg, paddingHorizontal: 10, paddingVertical: 7 }}>
+                    <Text style={{ color: getStatusStyle(overallChannelStatus).text, fontSize: 11, fontWeight: '900' }}>{overallChannelStatus === 'operational' ? 'OPERATIONAL' : 'DEGRADED'}</Text>
+                  </View>
+                  <Pressable
+                    style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceSoft, borderRadius: 12 }}
+                    onPress={() => {
+                      channelMonitorsQuery.refetch();
+                      channelHistoryQueries.forEach((query) => query.refetch());
+                    }}
+                  >
+                    <RefreshCw color={colors.textSoft} size={17} />
+                  </Pressable>
+                </View>
               )}
             >
-              {visibleChannelStatuses.length === 0 ? (
-                <Text style={{ fontSize: 14, color: colors.muted }}>当前还没有可聚合的渠道数据。</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+                {CHANNEL_WINDOW_OPTIONS.map((option) => {
+                  const active = option.key === channelWindow;
+                  return (
+                    <Pressable
+                      key={option.key}
+                      onPress={() => setChannelWindow(option.key)}
+                      style={{ flex: 1, alignItems: 'center', borderRadius: 999, backgroundColor: active ? colors.primary : colors.surfaceSoft, paddingVertical: 9 }}
+                    >
+                      <Text style={{ color: active ? '#fff' : colors.textSoft, fontSize: 12, fontWeight: '800' }}>{option.label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {channelMonitorsQuery.isLoading ? (
+                <Text style={{ fontSize: 14, color: colors.muted }}>正在加载渠道监控数据...</Text>
+              ) : channelMonitors.length === 0 ? (
+                <Text style={{ fontSize: 14, color: colors.muted }}>当前还没有配置渠道监控，请先在网页后台添加渠道监控。</Text>
               ) : (
-                <View style={{ gap: 12 }}>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
-                    <View style={{ flex: 1, backgroundColor: colors.tealSoft, borderRadius: 14, padding: 12 }}>
-                      <Text style={{ fontSize: 11, color: colors.teal }}>可调度</Text>
-                      <Text style={{ marginTop: 6, fontSize: 18, fontWeight: '700', color: colors.text }}>{formatNumber(channelSummary.available)}</Text>
+                <View style={{ gap: 14 }}>
+                  {channelWindow !== '7d' ? (
+                    <View style={{ borderRadius: 14, backgroundColor: colors.warningSoft, padding: 12 }}>
+                      <Text style={{ color: colors.warning, fontSize: 12, lineHeight: 18 }}>当前管理接口只直接返回 7 天可用率；15/30 天会在后端返回字段后自动显示。</Text>
                     </View>
-                    <View style={{ flex: 1, backgroundColor: colors.warningSoft, borderRadius: 14, padding: 12 }}>
-                      <Text style={{ fontSize: 11, color: colors.warning }}>需关注</Text>
-                      <Text style={{ marginTop: 6, fontSize: 18, fontWeight: '700', color: colors.warning }}>{formatNumber(channelSummary.issue)}</Text>
-                    </View>
-                    <View style={{ flex: 1, backgroundColor: colors.surfaceSoft, borderRadius: 14, padding: 12 }}>
-                      <Text style={{ fontSize: 11, color: colors.muted }}>渠道数</Text>
-                      <Text style={{ marginTop: 6, fontSize: 18, fontWeight: '700', color: colors.text }}>{formatNumber(channelStatuses.length)}</Text>
-                    </View>
-                  </View>
-
-                  {visibleChannelStatuses.map((channel) => (
-                    <ChannelStatusRow key={channel.key} channel={channel} />
-                  ))}
-
-                  {channelStatuses.length > visibleChannelStatuses.length ? (
-                    <Text style={{ fontSize: 12, color: colors.muted }}>还有 {formatNumber(channelStatuses.length - visibleChannelStatuses.length)} 个渠道，可进入账号清单按分组查看。</Text>
                   ) : null}
+
+                  {channelMonitors.map((monitor) => (
+                    <ChannelMonitorCard
+                      key={monitor.id}
+                      monitor={monitor}
+                      history={channelHistoryById[monitor.id] ?? []}
+                      windowKey={channelWindow}
+                      running={runningMonitorId === monitor.id}
+                      onRun={() => void handleRunChannelMonitor(monitor.id)}
+                    />
+                  ))}
                 </View>
               )}
             </Section>

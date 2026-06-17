@@ -12,6 +12,9 @@ import type {
   AdminGroup,
   AdminProxy,
   ProxyQualityCheckResult,
+  ChannelMonitor,
+  ChannelMonitorHistoryItem,
+  ChannelMonitorRunResult,
   AdminSettings,
   AdminUser,
   BalanceOperation,
@@ -182,6 +185,24 @@ export async function listAccounts(search = '') {
     ...firstPage,
     items: [firstPage.items, ...remainingPages.map((page) => page.items)].flat(),
   };
+}
+
+export function listChannelMonitors() {
+  return adminFetch<PaginatedData<ChannelMonitor>>(
+    `/api/v1/admin/channel-monitors${buildQuery({ page: 1, page_size: 100 })}`
+  );
+}
+
+export function getChannelMonitorHistory(monitorId: number) {
+  return adminFetch<{ items: ChannelMonitorHistoryItem[] }>(
+    `/api/v1/admin/channel-monitors/${monitorId}/history${buildQuery({ page: 1, page_size: 120 })}`
+  );
+}
+
+export function runChannelMonitor(monitorId: number) {
+  return adminFetch<ChannelMonitorRunResult>(`/api/v1/admin/channel-monitors/${monitorId}/run`, {
+    method: 'POST',
+  });
 }
 
 export function listProxies(search = '') {
