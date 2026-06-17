@@ -1,5 +1,5 @@
 import { Redirect, Tabs } from 'expo-router';
-import { ChartNoAxesCombined, Network, Settings2, Users } from 'lucide-react-native';
+import { ChartNoAxesCombined, Network, Settings2, Signal, Users } from 'lucide-react-native';
 
 import { adminConfigState, hasAuthenticatedAdminSession } from '@/src/store/admin-config';
 import { colors, shadows } from '@/src/theme/colors';
@@ -47,6 +47,13 @@ export default function TabsLayout() {
         options={{
           title: '概览',
           tabBarIcon: ({ color, size }) => <ChartNoAxesCombined color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="channel-status"
+        options={{
+          title: '渠道',
+          tabBarIcon: ({ color, size }) => <Signal color={color} size={size} />,
         }}
       />
       <Tabs.Screen
